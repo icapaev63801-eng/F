@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ВОЙНА ДРОНОВ 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(15, 20, 28, 0.94);
+  --red: #d1181f;
+  --red-hover: #ef232a;
+  --red2: #5c0d12;
+  --steel: #9aa0a6;
+  --tx: #ece5de;
+  --amb: #e8a634;
+  --green: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+html, body { touch-action: none; width: 100%; height: 100%; background: #000; color: var(--tx); font-family: 'Roboto Condensed', sans-serif; overflow: hidden; position: fixed; inset: 0; }
+
+#canvas-container { width: 100%; height: 100%; position: absolute; inset: 0; z-index: 1; }
+
+.ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.interactive { pointer-events: auto !important; }
+
+.scr { display: none; width: 100%; height: 100%; background: rgba(8,11,15,0.85); backdrop-filter: blur(6px); position: absolute; inset: 0; flex-direction: column; justify-content: center; align-items: center; z-index: 20; }
+.scr.active { display: flex; }
+
+h1, h2, h3, .rz { font-family: 'Russo One', sans-serif; text-transform: uppercase; }
+
+button {
+  font-family: 'Russo One', sans-serif; color: var(--tx); cursor: pointer;
+  background: linear-gradient(180deg, rgba(45,15,18,0.95) 0%, rgba(20,8,10,0.95) 100%);
+  border: 2px solid var(--red2); padding: 12px 26px; font-size: 1.1rem; letter-spacing: 2px;
+  clip-path: polygon(0 0, 92% 0, 100% 25%, 100% 100%, 8% 100%, 0 75%);
+  transition: all 0.15s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+}
+button:hover, button:active { background: var(--red); border-color: #ff5a5f; transform: translateY(-2px); box-shadow: 0 0 20px rgba(209,24,31,0.6); }
+
+/* MENU */
+#main-menu { justify-content: flex-start; align-items: flex-start; padding: 6vw; background: transparent; }
+#main-menu .sub { font-size: clamp(0.8rem, 2vw, 1.2rem); color: var(--steel); letter-spacing: 4px; margin-bottom: 5px; }
+#main-menu h1 { font-size: clamp(2.5rem, 6vw, 5rem); color: #f0e6df; text-shadow: 0 0 25px var(--red), 4px 4px 0 var(--red2); letter-spacing: 6px; margin-bottom: 25px; }
+.menu-nav { display: flex; flex-direction: column; gap: 14px; width: min(300px, 80vw); }
+.menu-nav button { width: 100%; text-align: left; padding: 14px 22px; font-size: 1.2rem; }
+
+/* HANGAR */
+#hangar-scr { background: transparent; }
+.hangar-top { position: absolute; top: 20px; left: 25px; right: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.hangar-tabs { display: flex; gap: 10px; }
+.hangar-tab { padding: 10px 20px; font-size: 0.95rem; opacity: 0.7; }
+.hangar-tab.active { opacity: 1; background: var(--red); border-color: #ff5a5f; }
+
+.hangar-bottom { position: absolute; bottom: 25px; left: 25px; right: 25px; display: flex; gap: 15px; justify-content: flex-end; }
+.hangar-info { max-height: calc(100% - 150px); overflow-y: auto; pointer-events: auto; position: absolute; left: 25px; top: 90px; background: var(--panel); border: 2px solid var(--red2); padding: 20px; width: min(340px, 85vw); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+.rotate-hint { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); color: var(--steel); font-size: 0.85rem; background: rgba(0,0,0,0.7); padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
+
+/* MODAL WINDOWS */
+.modal-overlay { display: none; position: absolute; inset: 0; background: rgba(3,5,8,0.92); z-index: 30; justify-content: center; align-items: center; flex-direction: column; gap: 20px; padding: 20px; }
+.modal-overlay.active { display: flex; }
+
+.settings-box { background: var(--panel); border: 2px solid var(--red2); border-radius: 8px; padding: 30px; width: min(500px, 90vw); display: flex; flex-direction: column; gap: 20px; }
+.setting-row { display: flex; justify-content: space-between; align-items: center; color: var(--tx); font-size: 1.1rem; }
+.setting-row input[type="range"] { width: 50%; accent-color: var(--red); cursor: pointer; }
+.setting-row select { background: #121820; color: #fff; border: 1px solid var(--red2); padding: 8px 12px; border-radius: 4px; font-family: 'Roboto Condensed'; }
+
+/* MODE SELECTOR */
+.mode-cards { display: flex; gap: 20px; max-width: 900px; width: 100%; flex-wrap: wrap; justify-content: center; }
+.mode-card {
+  flex: 1 1 280px; max-width: 400px; background: var(--panel); border: 2px solid var(--red2); padding: 25px;
+  display: flex; flex-direction: column; justify-content: space-between; border-radius: 8px;
+  transition: 0.2s ease; cursor: pointer;
+}
+.mode-card:hover { border-color: var(--red); transform: translateY(-4px); background: rgba(28,12,15,0.95); box-shadow: 0 10px 30px rgba(209,24,31,0.3); }
+.mode-card h3 { color: var(--amb); font-size: 1.5rem; margin-bottom: 12px; }
+.mode-card p { font-size: 0.95rem; color: var(--steel); line-height: 1.4; margin-bottom: 15px; }
+
+/* HUD */
+#hud { position: absolute; inset: 0; z-index: 15; display: none; pointer-events: none; }
+#hud.active { display: block; }
+
+.crosshair { position: absolute; top: 50%; left: 50%; width: 28px; height: 28px; transform: translate(-50%, -50%); pointer-events: none; }
+.crosshair::before, .crosshair::after { content: ''; position: absolute; background: rgba(255, 60, 60, 0.9); }
+.crosshair::before { top: 13px; left: 0; width: 28px; height: 2px; }
+.crosshair::after { top: 0; left: 13px; width: 2px; height: 28px; }
+.crosshair-dot { position: absolute; top: 12px; left: 12px; width: 4px; height: 4px; background: #fff; border-radius: 50%; }
+
+.hud-panel { position: absolute; background: var(--panel); border: 2px solid var(--red2); padding: 10px 16px; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.8); pointer-events: none; }
+#health-hud { left: 20px; bottom: 20px; width: 200px; }
+#ammo-hud { right: 20px; bottom: 20px; text-align: right; }
+#balance-badge { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px; z-index: 60; pointer-events: none; font-family: 'Russo One'; color: var(--amb); background: rgba(0,0,0,0.65); border: 1px solid var(--red2); border-radius: 6px; padding: 6px 12px; font-size: 1rem; }
+#hud[data-mode=operator] #hud-sub-info { display: none; }
+#hud[data-mode=soldier] #op-goals { display: none; }
+#op-toast { position: fixed; top: 22%; left: 50%; transform: translateX(-50%); z-index: 70; pointer-events: none; font-family: 'Russo One'; font-size: clamp(1.1rem, 4vw, 2rem); color: #ffb020; text-shadow: 0 0 12px #000, 2px 2px 0 #000; opacity: 0; transition: opacity .25s; text-align: center; }
+/* компактный HUD оператора */
+#hud[data-mode=operator] #health-hud, #hud[data-mode=operator] #ammo-hud, #hud[data-mode=operator] #hud-mode-title, #hud[data-mode=operator] .crosshair { display: none; }
+#hud[data-mode=operator] #btn-view { position: absolute; top: 36px; right: 8px; padding: 4px 10px; font-size: 0.65rem; z-index: 1000; }
+#hud[data-mode=soldier] #btn-view { display: none; }
+body.third-person #fpv-overlay { background: none; border-color: transparent; }
+#info-hud { top: 8px; left: 8px; transform: none; text-align: left; padding: 3px 8px; background: rgba(0,0,0,0.35); border-width: 1px; box-shadow: none; }
+#hud[data-mode=operator] #op-goals { font-size: 0.62rem; line-height: 1.25; }
+#hud[data-mode=operator] #hud-balance-row { font-size: 0.62rem; }
+#hud[data-mode=operator] #btn-pause-hud { top: 8px !important; right: 8px !important; padding: 4px 10px !important; font-size: 0.65rem !important; }
+body.op-active #balance-badge { top: 8px; right: 100px; font-size: 0.65rem; padding: 3px 8px; }
+body.op-active #fpv-overlay { border-width: 3px; }
+body.op-active .fpv-telemetry { top: auto; bottom: 6px; left: 50%; transform: translateX(-50%); font-size: 0.62rem; white-space: nowrap; text-shadow: none; }
+body.op-active .fpv-hint { display: none; }
+body.touch.op-active .fpv-telemetry { bottom: 6px; }
+body.op-active #op-toast { top: 14%; font-size: clamp(0.8rem, 2.6vw, 1.2rem); }
+.stick-hint { display: none; position: absolute; bottom: 6px; font-size: 0.55rem; color: rgba(255,255,255,0.45); font-family: monospace; pointer-events: none; text-align: center; width: 150px; }
+body.touch.op-active .stick-hint { display: block; }
+#info-hud { top: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
+
+.bar-bg { width: 100%; height: 10px; background: #1a080a; margin-top: 6px; border: 1px solid #4a1215; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #991b1b, #ef4444); transition: width 0.2s; }
+
+/* FPV OVERLAY */
+#fpv-overlay {
+  position: absolute; inset: 0; pointer-events: none; display: none; z-index: 12;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.06), rgba(0,0,0,0.06) 1px, transparent 1px, transparent 2px);
+  border: 12px solid rgba(52, 211, 153, 0.25);
+}
+#fpv-overlay.active { display: block; }
+.fpv-telemetry { position: absolute; top: 20px; left: 20px; font-family: monospace; color: #34d399; font-size: 1.05rem; text-shadow: 0 0 6px #34d399; pointer-events: none; }
+
+/* START / PAUSE OVERLAY */
+#click-to-play { position: absolute; inset: 0; background: rgba(4,6,10,0.88); display: none; justify-content: center; align-items: center; flex-direction: column; gap: 18px; z-index: 100; }
+#click-to-play.active { display: flex; }
+
+#weapon-bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; }
+#hud[data-mode=operator] #weapon-bar { display: none; }
+.wbtn { padding: 8px 14px; font-size: 0.85rem; letter-spacing: 1px; opacity: 0.8; }
+.wbtn.active { opacity: 1; background: var(--red); border-color: #ff5a5f; }
+/* TOUCH */
+#touch-ui { display: none; position: absolute; inset: 0; z-index: 14; pointer-events: none; }
+body.touch #hud.active ~ #touch-ui { display: block; }
+#look-zone { position: absolute; right: 0; top: 0; width: 60%; height: 100%; pointer-events: auto; }
+#joy-zone { position: absolute; left: 0; bottom: 0; width: 40%; height: 65%; pointer-events: auto; }
+#joy-zone-r { position: absolute; right: 0; bottom: 0; width: 40%; height: 65%; pointer-events: auto; }
+#touch-ui[data-mode=soldier] #joy-zone-r, #touch-ui[data-mode=soldier] #joy-base-r { display: none; }
+#touch-ui[data-mode=operator] #look-zone, #touch-ui[data-mode=operator] .tbtn { display: none; }
+#joy-base, #joy-base-r { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.08); pointer-events: none; }
+#joy-knob, #joy-knob-r { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(209,24,31,0.8); border: 2px solid #ff5a5f; }
+.tbtn { position: absolute; clip-path: none; border-radius: 50%; width: 72px; height: 72px; padding: 0; font-size: 0.85rem; letter-spacing: 0; pointer-events: auto; background: rgba(209,24,31,0.75); border-color: #ff5a5f; }
+#t-fire { right: max(24px, env(safe-area-inset-right)); bottom: 24px; width: 84px; height: 84px; }
+#t-reload { right: 120px; bottom: 36px; width: 56px; height: 56px; }
+#t-up { right: max(24px, env(safe-area-inset-right)); bottom: 126px; width: 56px; height: 56px; }
+#t-down { right: 96px; bottom: 126px; width: 56px; height: 56px; }
+#touch-ui[data-mode=soldier] .drone-only, #touch-ui[data-mode=operator] .sol-only { display: none; }
+#health-hud { left: max(20px, env(safe-area-inset-left)); }
+@media (max-height: 520px) {
+  .modal-overlay { gap: 8px; padding: 10px; overflow-y: auto; }
+  .modal-overlay h2 { font-size: 1.2rem !important; }
+  .mode-card { padding: 12px; flex: 1 1 200px; }
+  .mode-card ul { display: none; }
+  .mode-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+  .mode-card p { margin-bottom: 4px; font-size: 0.8rem; }
+  .mode-card button { margin-top: 8px !important; padding: 8px 14px; font-size: 0.9rem; }
+  button { padding: 8px 16px; font-size: 0.95rem; }
+  #main-menu { padding: 4vh 6vw; }
+  #main-menu h1 { margin-bottom: 10px; }
+  .menu-nav { gap: 8px; }
+  .menu-nav button { padding: 9px 20px; font-size: 1rem; }
+  .hangar-info { top: 62px; padding: 12px; width: min(300px, 50vw); }
+  .hangar-top { top: 10px; }
+  .hangar-top h2 { font-size: 1.1rem !important; }
+  .hangar-tab { padding: 6px 12px; font-size: 0.75rem; }
+  .hangar-bottom { bottom: 10px; }
+  .rotate-hint { display: none; }
+  #click-to-play { gap: 8px; }
+  #click-to-play h2 { font-size: 1.3rem !important; }
+  .hud-panel { padding: 5px 10px; }
+  #health-hud { width: 150px; bottom: 10px; }
+  #ammo-hud { top: 62px; bottom: auto; right: 14px; }
+  .wbtn { padding: 6px 8px; font-size: 0.7rem; letter-spacing: 0; }
+  #weapon-bar { bottom: 8px; }
+}
+
+.ic { vertical-align: -0.18em; }
+
+/* Таймер матча: отдельная плашка в левом верхнем углу (меняйте left/right/top тут) */
+#match-timer { display: none; position: fixed; top: calc(env(safe-area-inset-top, 0px) + 6px); left: 8px; z-index: 1000; padding: 3px 10px; font-family: 'Russo One', sans-serif; font-size: 0.9rem; letter-spacing: 1px; color: #fff; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.3); pointer-events: none; }
+#match-timer.low { color: #ff5a5f; border-color: #ff5a5f; }
+</style>
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="op-toast"></div>
+<div id="match-timer"></div>
+<div id="balance-badge">БАЛАНС: 0 кр.</div>
+<div class="ui-layer">
+  
+  <!-- MAIN MENU -->
+  <div id="main-menu" class="scr active interactive">
+    <div class="sub">ТАКТИЧЕСКИЙ 3D ЭКШЕН · ГОРОД</div>
+    <h1>ВОЙНА ДРОНОВ</h1>
+    <div class="menu-nav">
+      <button id="btn-play-start">ИГРАТЬ</button>
+      <button id="btn-hangar">АНГАР / МАГАЗИН</button>
+      <button id="btn-settings">НАСТРОЙКИ</button>
+    </div>
+  </div>
+
+  <!-- HANGAR SCREEN -->
+  <div id="hangar-scr" class="scr interactive">
+    <div class="hangar-top">
+      <h2 class="rz" style="font-size:1.8rem;">АНГАР ВООРУЖЕНИЯ</h2>
+      <div class="hangar-tabs">
+        <button class="hangar-tab active" id="tab-sol">СНАРЯЖЕНИЕ ВОЕННОГО</button>
+        <button class="hangar-tab" id="tab-op">ТЕХНИКА ОПЕРАТОРА</button>
+      </div>
+      <div style="color:var(--amb); font-size:1.2rem; font-family:'Russo One';" id="credits">КРЕДИТЫ: 0</div>
+    </div>
+    <div class="hangar-info">
+      <h3 id="hangar-title" style="color:var(--amb); font-size:1.4rem; margin-bottom:8px;">АК-74 / АКМ КЛАССИЧЕСКИЙ</h3>
+      <p id="hangar-desc" style="color:var(--steel); font-size:0.95rem; line-height:1.4;">Автомат Калашникова с деревянным прикладом, цевьем и рыжим бакелитовым магазином.</p>
+      <div style="margin-top:18px; display:flex; gap:10px;">
+        <button id="btn-prev-item" style="padding:8px 20px;"></button>
+        <button id="btn-next-item" style="padding:8px 20px;"></button>
+      </div>
+      <div id="upg-list"></div>
+    </div>
+    <div class="rotate-hint" id="rot-hint"></div>
+    <div class="hangar-bottom">
+      <button id="btn-hangar-back">НАЗАД В МЕНЮ</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-overlay interactive">
+    <div class="settings-box">
+      <h2 class="rz" style="color:var(--amb); text-align:center;">НАСТРОЙКИ ИГРЫ</h2>
+      
+      <div class="setting-row">
+        <span>Чувствительность мыши</span>
+        <input type="range" id="sens-slider" min="1" max="10" value="5">
+      </div>
+
+      <div class="setting-row">
+        <span>Качество графики</span>
+        <select id="gfx-select">
+          <option value="high" selected>Высокое (Тени + АА)</option>
+          <option value="medium">Среднее</option>
+          <option value="low">Низкое (Быстрое)</option>
+        </select>
+      </div>
+
+      <div style="display:flex; justify-content:center; margin-top:15px;">
+        <button id="btn-settings-close" style="width:100%;">СОХРАНИТЬ И ЗАКРЫТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODE SELECTOR MODAL -->
+  <div id="mode-modal" class="modal-overlay interactive">
+    <h2 class="rz" style="font-size:2.2rem; color:#fff;">ВЫБЕРИТЕ РЕЖИМ БОЯ</h2>
+    <div class="mode-cards">
+      <div class="mode-card" id="card-soldier">
+        <div>
+          <h3>1. ВОЕННЫЙ С АК-74</h3>
+          <p>Пехотный бой на улицах детализированного 3D города.</p>
+          <ul style="color:#ccc; font-size:0.9rem; margin-left:18px; line-height:1.6;">
+            <li>Классический АК-74 с деревянным прикладом</li>
+            <li>Свободное движение WASD по направлению взгляда</li>
+            <li>Отражение атак вражеских квадрокоптеров</li>
+          </ul>
+        </div>
+        <button style="width:100%; margin-top:20px;">В БОЙ ЗА ВОЕННОГО</button>
+      </div>
+
+      <div class="mode-card" id="card-operator">
+        <div>
+          <h3>2. ОПЕРАТОР FPV</h3>
+          <p>Дрон-камикадзе: врезайся в цели и взрывай их.</p>
+          <ul style="color:#ccc; font-size:0.9rem; margin-left:18px; line-height:1.6;">
+            <li>Врезайся в военные машины — они взрываются</li>
+            <li>Убивай военных и бей по домам — нужное число указано в миссии</li>
+            <li>Дронов ограниченное количество, каждый взрывается при ударе</li>
+          </ul>
+        </div>
+        <button style="width:100%; margin-top:20px;">ВЫЛЕТ ОПЕРАТОРА</button>
+      </div>
+    </div>
+    <button id="btn-mode-back" style="margin-top:10px;">НАЗАД В МЕНЮ</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="crosshair"><div class="crosshair-dot"></div></div>
+    <div id="weapon-bar">
+      <button class="wbtn active" data-w="ak">1 · АК-74</button>
+      <button class="wbtn" data-w="int">2 · ПЕРЕХВАТЧИК</button>
+      <button class="wbtn" data-w="jam">3 · ГЛУШИЛКА</button>
+    </div>
+    
+    <div class="hud-panel" id="health-hud">
+      <div style="font-size:0.8rem; color:var(--steel);">ЗДОРОВЬЕ БАЗЫ</div>
+      <div id="hp-val" style="font-family:'Russo One'; font-size:1.4rem; color:#fff;">100%</div>
+      <div class="bar-bg"><div class="bar-fill" id="hp-bar"></div></div>
+    </div>
+
+    <div class="hud-panel" id="info-hud">
+      <div id="hud-mode-title" style="font-family:'Russo One'; color:var(--amb); font-size:1.15rem;">РЕЖИМ ВОЕННОГО</div>
+      <div id="hud-sub-info" style="font-size:0.9rem; color:#fff;">СБИТО ДРОНОВ: <span id="kills-count" style="color:var(--green);">0</span></div>
+      <div id="op-goals" style="font-size:0.9rem; color:#fff; line-height:1.5;"></div>
+      <div id="hud-balance-row" style="font-size:0.9rem; color:var(--amb);">БАЛАНС: <span id="hud-balance">0</span> кр. <span id="hud-earned" style="color:var(--green);"></span></div>
+    </div>
+
+    <div class="hud-panel" id="ammo-hud">
+      <div style="font-size:0.8rem; color:var(--steel);">БОЕЗАПАС</div>
+      <div id="ammo-val" style="font-family:'Russo One'; font-size:1.6rem; color:#fff;">30 / ∞</div>
+    </div>
+
+    <!-- КНОПКА МЕНЮ / ПАУЗА НА HUD -->
+    <button id="btn-view" class="interactive">ВИД: 1-Е ЛИЦО</button>
+    <button id="btn-pause-hud" class="interactive" style="position:absolute; top:20px; right:20px; padding:10px 22px; font-size:1rem; z-index:1000;">⏸ МЕНЮ (ESC)</button>
+  </div>
+
+  <div id="touch-ui" data-mode="soldier">
+    <div id="look-zone"></div>
+    <div id="joy-zone"></div>
+    <div id="joy-zone-r"></div>
+    <div id="joy-base"><div id="joy-knob"></div></div>
+    <div id="joy-base-r"><div id="joy-knob-r"></div></div>
+    <div class="stick-hint" style="left:30px;">ЛЕВЫЙ: ▲▼ ВЫСОТА · ◄► ПОВОРОТ</div>
+    <div class="stick-hint" style="right:30px;">ПРАВЫЙ: ▲ НОС ВНИЗ · ▼ НОС ВВЕРХ · ◄► ВБОК</div>
+    <button id="t-fire" class="tbtn">ОГОНЬ</button>
+    <button id="t-reload" class="tbtn sol-only">R</button>
+    <button id="t-up" class="tbtn drone-only">▲</button>
+    <button id="t-down" class="tbtn drone-only">▼</button>
+  </div>
+
+  <!-- FPV OVERLAY -->
+  <div id="fpv-overlay">
+    <div class="fpv-telemetry">
+      <div>FPV [LIVE STREAM]</div>
+      <div>ALT <span id="fpv-alt">35</span>m · SPD <span id="fpv-spd">0</span> km/h · АКБ <span id="fpv-bat">100</span>%</div>
+      <div class="fpv-hint" style="font-size:0.85rem; color:#aaa; margin-top:6px;">Space: ВВЕРХ | Shift: ВНИЗ | W/S: ВПЕРЕД/НАЗАД | A/D: СТРЕЙФ</div>
+    </div>
+  </div>
+
+  <!-- DESKTOP START OVERLAY -->
+  <div id="click-to-play" class="interactive">
+    <h2 class="rz" style="color:var(--amb); font-size:2rem;">НАЖМИТЕ ДЛЯ СТАРТА</h2>
+    <p style="color:#ccc; font-size:1rem; text-align:center; max-width:500px;">
+      Управление: WASD — движение по вектору взгляда, МЫШЬ — прицеливание, ЛКМ — огонь/атака, R — перезарядка, ESC — пауза.
+    </p>
+    <button id="btn-lock-start" style="margin-top:10px; font-size:1.3rem; padding:14px 36px;">НАЧАТЬ БОЙ</button>
+    <button id="btn-pause-menu">В МЕНЮ</button>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="end-screen" class="scr interactive">
+    <h2 id="end-title" style="font-size:3rem; color:var(--red); margin-bottom:10px;">БОЙ ЗАВЕРШЕН</h2>
+    <p id="end-desc" style="font-size:1.2rem; color:var(--steel); margin-bottom:30px;">Результаты</p>
+    <div style="display:flex; gap:20px;">
+      <button id="btn-restart">ЕЩЁ РАЗ</button>
+      <button id="btn-to-menu">В МЕНЮ</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================================
+   ИГРОВЫЕ ДАННЫЕ И НАСТРОЙКИ
+   ========================================================================= */
+const ITEMS = {
+  soldier: [
+    { id: 'ak74', name: 'АК-74 / АКМ КЛАССИЧЕСКИЙ', desc: 'Автомат Калашникова с деревянным прикладом, цевьем и рыжим бакелитовым магазином.' },
+    { id: 'jammer', name: 'ГЛУШИЛКА ДРОНОВ', desc: 'Держи огонь: дроны рядом начинают трястись и терять скорость, а затем могут упасть или взорваться в воздухе. Заряд ограничен.' }
+  ],
+  operator: [
+    { id: 'fpvquad', name: 'FPV ДРОН', desc: 'Обычный FPV-квадрокоптер-камикадзе. Врезайся в машины, военных и дома — дрон взрывается при ударе.' }
+  ]
+};
+
+const state = {
+  mode: 'soldier',
+  tab: 'soldier',
+  itemIdx: 0,
+  weapon: 'ak',
+  view: 'main',
+  active: false,
+  hp: 100,
+  kills: 0,
+  ammo: 30,
+  reloading: false,
+  paused: false,
+  isLocked: false,
+  sensitivity: 0.0022
+};
+
+let scene, camera, renderer, clock, sun, sky;
+const BLD = [];
+let handInt, jamGroup, jamBubble, intCd = 0, jamEn = 100, jamOn = false, jamLock = false, hudT = 0;
+const missiles = [], soldiers = [];
+const jamRange = () => 45 + 12 * lv('j_rng'), jamChance = () => 0.3 + 0.08 * lv('j_pwr');
+const SAVE_KEY = 'drone_war_save_v1';
+let save = { credits: 500, up: { s_dmg: 0, s_rate: 0, s_mag: 0, s_rel: 0, o_dmg: 0, o_rate: 0, o_spd: 0, i_rel: 0, i_rad: 0, j_rng: 0, j_pwr: 0 } };
+try { const d = JSON.parse(localStorage.getItem(SAVE_KEY)); if (d && d.up) { save.credits = d.credits | 0; Object.assign(save.up, d.up); } } catch (e) {}
+const saveGame = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
+const OP_GOAL = { trucks: 3, soldiers: 3, bld: 3 };
+const DRONE_R = 1.3; // радиус попадания FPV-дрона (больше = легче попасть)
+const OP_DRONES = 15;
+const MAXL = 5, KILL_REWARD = 25, MISSION_KILLS = 15, MISSION_REWARD = 800;
+const UPG = {
+  ak74: [['s_dmg', 'Урон', 400, '+35% урона за уровень'], ['s_rate', 'Скорострельность', 300, 'на 8% быстрее'], ['s_mag', 'Магазин', 250, '+10 патронов'], ['s_rel', 'Перезарядка', 200, 'на 0.25 с быстрее']],
+  interceptor: [['i_rel', 'Перезарядка', 400, 'на 1.2 с быстрее (база 10 с)'], ['i_rad', 'Радиус взрыва', 350, '+2 м, заденет соседние дроны']],
+  jammer: [['j_rng', 'Дальность', 300, '+12 м радиус'], ['j_pwr', 'Мощность сигнала', 400, '+8% шанс сбоя']],
+  operator: [['o_dmg', 'Мощность лазера', 400, '+35% урона за уровень'], ['o_rate', 'Скорострельность', 300, 'на 8% быстрее'], ['o_spd', 'Скорость дрона', 300, '+4 к скорости']]
+};
+const lv = k => save.up[k] || 0, upCost = (b, k) => Math.round(b * (1 + 0.8 * lv(k)));
+const magSize = () => 30 + 10 * lv('s_mag'), relMs = () => 1500 - 250 * lv('s_rel');
+const IS_TOUCH = window.matchMedia("(pointer: coarse)").matches;
+const joy = { x: 0, y: 0 }, joyR = { x: 0, y: 0 };
+let playerGroup, gunGroup, muzzleFlashMesh;
+let fpvDroneGroup, fpvQuadGroup, hangarStageGroup;
+let enemyDrones = [], vehicles = [], particles = [], casings = [], propRotators = [];
+
+const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+let mouseYaw = 0, mousePitch = 0;
+let isFiring = false, lastShotTime = 0, gunRecoilTimer = 0;
+
+let isDraggingHangar = false, previousMousePosition = { x: 0, y: 0 };
+
+const $ = s => document.querySelector(s);
+
+// Нарисованные иконки (SVG) вместо смайликов
+const SVG = d => '<svg class="ic" viewBox="0 0 24 24" width="1.1em" height="1.1em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+const ICON_EYE = SVG('<path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/>');
+const ICON_WARN = SVG('<path d="M12 3L22 20H2z"/><path d="M12 9.5v4.5M12 17v.5"/>');
+const ICON_L = SVG('<path d="M15 5l-7 7 7 7"/>'), ICON_R = SVG('<path d="M9 5l7 7-7 7"/>');
+
+/* =========================================================================
+   МАТЧ: настройки, счёт, события (задел под онлайн)
+   -------------------------------------------------------------------------
+   Счёт ведётся скрытно (в бою не показывается), итоги выдаются в конце матча.
+   Для онлайна: роли (оператор / военный) могут занимать люди или боты,
+   а все важные события проходят через matchEmit — туда можно подключить
+   сеть через matchOn(fn).
+   ========================================================================= */
+
+const MATCH = {
+  baseHp: 200,                 // здоровье базы: раньше 100 хватало на ~3 мин, матч теперь 10 мин (≈ ×3,3)
+  matchTime: 300,              // длительность матча для всех ролей, сек (5 минут, пробная версия)
+  // сколько HP базы снимает каждое попадание оператора
+  hitBase: { truck: 12, soldier: 3, bld: 10, ind: 30 },  // ind — заправки, резервуары, электростанция
+  opDrones: Infinity,          // у оператора дроны не заканчиваются, матч идёт по времени
+  enemyDroneMax: 4,            // вражеских дронов в воздухе одновременно (раньше 12)
+  enemySpawnPerSec: 0.15,      // как часто вылетают (раньше 1.2 в сек)
+  allyMax: 2,                  // союзных ботов-операторов (раньше 3)
+  allySpawnEvery: [10, 16],    // пауза между их запусками, сек
+  // кто управляет ролью: 'human' — игрок (позже по сети), 'bot' — ИИ
+  roles: { operator: 'human', soldier: 'bot' }
+};
+
+const matchHandlers = [];
+const matchOn = fn => matchHandlers.push(fn);
+function matchEmit(type, data) { matchHandlers.forEach(f => { try { f(type, data || {}); } catch (e) {} }); }
+
+// Попадание оператора по цели снимает HP базы (город = база военных)
+function baseHit(kind) {
+  if (state.mode === 'operator' && state.active) { state.hp -= MATCH.hitBase[kind] || 0; updateHUD(); }
+}
+
+// Урон, нанесённый за матч (копится скрытно, итог показывается в конце)
+function matchDamage(kind, n) { if (state.dmg) state.dmg[kind] = (state.dmg[kind] || 0) + n; }
+const matchTotalDamage = () => Object.values(state.dmg || {}).reduce((a, b) => a + b, 0);
+
+// Таймер матча (10 минут у всех)
+function tickMatch(delta) {
+  if (!state.active) return;
+  state.matchT -= delta;
+  // HP базы кончилось: у оператора это победа (у военного поражение ловит checkDefeat)
+  if (state.mode === 'operator' && state.hp <= 0) { finishGame(true, 'БАЗА УНИЧТОЖЕНА — ПОБЕДА ОПЕРАТОРОВ'); return; }
+  const s = Math.max(0, Math.ceil(state.matchT)), pct = Math.max(0, Math.round(state.hp / MATCH.baseHp * 100));
+  if (s !== state.matchS || pct !== state.matchP) {
+    state.matchS = s; state.matchP = pct;
+    const t = $('#match-timer'); t.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' · БАЗА ' + pct + '%'; t.classList.toggle('low', s <= 60);
+  }
+  if (state.matchT <= 0) finishGame(state.mode === 'soldier', 'ВРЕМЯ ВЫШЛО — ВОЕННЫЕ ПРОДЕРЖАЛИСЬ');
+}
+
+/* =========================================================================
+   СЦЕНА: Three.js, город, коллизии
+   ========================================================================= */
+
+function initThree() {
+  const container = $('#canvas-container');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x6e5a5c);
+  scene.fog = new THREE.FogExp2(0x6e5a5c, 0.0035);
+
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.rotation.order = "YXZ";
+  scene.add(camera);
+  
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH ? 1.5 : 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  container.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+
+  scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x4a3a35, 0.9));
+  sun = new THREE.DirectionalLight(0xffc890, 1.4);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(IS_TOUCH ? 1024 : 2048, IS_TOUCH ? 1024 : 2048);
+  Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 1, far: 450 });
+  sun.shadow.bias = -0.0005;
+  scene.add(sun, sun.target);
+
+  buildRealisticCity();
+  createAK74Model();
+  createTailsitterDroneModel();
+  createFPVQuadModel();
+  createExtraWeapons();
+  buildHangarStage();
+
+  window.addEventListener('resize', onWindowResize);
+}
+
+function winTex(seed) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const walls = ['#4a505c', '#5b5650', '#3f4650', '#625a55'];
+  g.fillStyle = walls[seed % 4]; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) {
+    const lit = Math.random() < 0.35;
+    g.fillStyle = lit ? '#ffd88a' : '#1b2536';
+    g.fillRect(i * 42 + 9, j * 42 + 8, 26, 26);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(i * 42 + 9, j * 42 + 8, 26, 3);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+  return t;
+}
+
+function buildRealisticCity() {
+  sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    vertexShader: 'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader: 'varying vec3 p;void main(){float h=normalize(p).y;vec3 a=vec3(.05,.09,.22),b=vec3(.43,.353,.36);gl_FragColor=vec4(mix(b,a,smoothstep(0.,.55,h)),1.);}'
+  }));
+  scene.add(sky);
+
+  const S = 2048, k = S / 800, X = v => (v + 400) * k;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#4b4e52'; g.fillRect(0, 0, S, S);
+  for (let i = -300; i <= 300; i += 100) {
+    g.fillStyle = '#6d7075';
+    g.fillRect(0, X(i) - 12 * k, S, 24 * k); g.fillRect(X(i) - 12 * k, 0, 24 * k, S);
+  }
+  for (let i = -300; i <= 300; i += 100) {
+    g.fillStyle = '#1f2226';
+    g.fillRect(0, X(i) - 9 * k, S, 18 * k); g.fillRect(X(i) - 9 * k, 0, 18 * k, S);
+  }
+  g.strokeStyle = '#e2b023'; g.lineWidth = 0.4 * k; g.setLineDash([5 * k, 5 * k]);
+  for (let i = -300; i <= 300; i += 100) {
+    for (let j = -400; j < 400; j += 100) {
+      if (Math.abs(((j + 50) % 100)) < 1 || true) {
+        g.beginPath(); g.moveTo(0, X(i)); g.lineTo(X(i) - 10 * k, X(i)); g.stroke();
+      }
+    }
+    break;
+  }
+  g.beginPath();
+  for (let i = -300; i <= 300; i += 100) {
+    g.moveTo(0, X(i)); g.lineTo(S, X(i));
+    g.moveTo(X(i), 0); g.lineTo(X(i), S);
+  }
+  g.stroke();
+  const gt = new THREE.CanvasTexture(c); gt.encoding = THREE.sRGBEncoding; gt.anisotropy = 8;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ map: gt, roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  scene.add(ground);
+
+  const tex = [0, 1, 2, 3].map(winTex);
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.9 });
+  for (let cx = -250; cx <= 250; cx += 100) for (let cz = -250; cz <= 250; cz += 100) {
+    for (const [ox, oz] of [[-21, -21], [21, -21], [-21, 21], [21, 21]]) {
+      const sp = SPECIAL_SLOTS[cx + ',' + cz + ',' + ox + ',' + oz];
+      if (sp) { buildIndustrial(sp, cx + ox, cz + oz); continue; }
+      const h = 20 + Math.random() * Math.random() * 90 + Math.random() * 15;
+      const t = tex[Math.floor(Math.random() * 4)].clone(); t.needsUpdate = true;
+      t.repeat.set(1, Math.max(1, Math.round(h / 36 * 2) / 2));
+      const wall = new THREE.MeshStandardMaterial({ map: t, roughness: 0.75 });
+      const b = new THREE.Mesh(new THREE.BoxGeometry(36, h, 36), [wall, wall, roofMat, roofMat, wall, wall]);
+      b.position.set(cx + ox, h / 2, cz + oz);
+      b.castShadow = b.receiveShadow = true;
+      scene.add(b);
+      const ac = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 8), roofMat);
+      ac.position.set(cx + ox + 8, h + 1.25, cz + oz - 6); ac.castShadow = true;
+      scene.add(ac);
+      BLD.push({ x: cx + ox, z: cz + oz, hx: 18, hz: 18, h, h0: h, hp: 3, mesh: b, ac });
+    }
+  }
+
+  for (let i = 0; i < 18; i++) {
+    if (i < 10) createSoldier(...soldierSpot());
+    createMilitaryTruck([-100, 0, 100][i % 3] + (i % 2 ? 4.5 : -4.5), (Math.random() - 0.5) * 300);
+  }
+
+  // Дополнительный low-poly район по мотивам присланных скриншотов.
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.82 });
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(1000, 76), mat(0x6bb8d2));
+  water.rotation.x = -Math.PI / 2; water.position.set(0, 0.12, 320); scene.add(water);
+  const bankMat = mat(0xc9bd82);
+  for (const z of [280, 360]) {
+    const bank = new THREE.Mesh(new THREE.BoxGeometry(1000, 1.2, 10), bankMat);
+    bank.position.set(0, 0.1, z); scene.add(bank);
+  }
+
+  // Три красных подвесных моста через реку.
+  const bridgeDeckMat = mat(0x777b80), bridgeRed = mat(0xa9343b), cableMat = mat(0x5c252b);
+  [-155, 0, 155].forEach((x, bi) => {
+    const deck = new THREE.Group(); scene.add(deck);
+    const road = new THREE.Mesh(new THREE.BoxGeometry(18, 1.4, 94), bridgeDeckMat);
+    road.position.set(x, 4.2, 320); deck.add(road);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.2, 94), bridgeRed);
+    for (const side of [-8.5, 8.5]) { const r = rail.clone(); r.position.set(x + side, 5.8, 320); deck.add(r); }
+    for (const z of [278, 362]) {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(2.2, 22, 2.2), bridgeRed);
+      tower.position.set(x, 15, z); deck.add(tower);
+      const cross = new THREE.Mesh(new THREE.BoxGeometry(19, 1.4, 1.4), bridgeRed);
+      cross.position.set(x, 25.2, z); deck.add(cross);
+    }
+    const cable = new THREE.Mesh(new THREE.TorusGeometry(47, 0.35, 6, 48, Math.PI), cableMat);
+    cable.rotation.z = Math.PI / 2; cable.rotation.y = Math.PI / 2;
+    cable.position.set(x, 18, 320); cable.scale.set(1, 0.52, 1); deck.add(cable);
+    for (let j = 0; j < 11; j++) {
+      const z = 280 + j * 8;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, 5 + Math.sin(j / 10 * Math.PI) * 5, 0.35), bridgeRed);
+      post.position.set(x - 7.5, 7.5, z); deck.add(post);
+      const post2 = post.clone(); post2.position.x = x + 7.5; deck.add(post2);
+    }
+    BLD.push({ x, z: 320, hx: 9, hz: 46, h: 6, h0: 6, hp: 4, hpMax: 4, mesh: road, ac: deck, big: true, kind: 'bridge' });
+  });
+
+  // Небольшой хвойный лес вдоль берега.
+  const trunkMat = mat(0x69513b), pineMats = [mat(0x315b43), mat(0x426d4b), mat(0x607d50)];
+  for (let i = 0; i < 145; i++) {
+    const x = -475 + Math.random() * 950, z = 390 + Math.random() * 82;
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.2, 5, 5), trunkMat);
+    trunk.position.y = 2.5; tree.add(trunk);
+    for (let j = 0; j < 3; j++) {
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(4.8 - j * 0.9, 8, 6), pineMats[(i + j) % pineMats.length]);
+      crown.position.y = 6 + j * 3.4; tree.add(crown);
+    }
+    tree.position.set(x, 0, z); tree.rotation.y = Math.random() * 6.28; scene.add(tree);
+  }
+
+  // Колесо обозрения и павильоны парка.
+  const wheelGroup = new THREE.Group(); scene.add(wheelGroup); wheelGroup.position.set(320, 0, 155);
+  const wheelMat = mat(0xc7c9c5), supportMat = mat(0x8c4447);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(34, 1.25, 8, 48), wheelMat);
+  wheel.position.set(0, 43, 0); wheelGroup.add(wheel);
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI * 2 / 12, x = Math.sin(a) * 34, y = 43 + Math.cos(a) * 34;
+    const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 68, 6), wheelMat);
+    spoke.position.set(x / 2, (y + 43) / 2, 0); spoke.rotation.z = -a; wheelGroup.add(spoke);
+    const pod = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 5), mat(i % 2 ? 0xb84d4d : 0x4f8292));
+    pod.position.set(x, y, 0); wheelGroup.add(pod);
+  }
+  for (const x of [-13, 13]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(2, 32, 2), supportMat);
+    leg.position.set(x, 16, 0); leg.rotation.z = x < 0 ? -0.35 : 0.35; wheelGroup.add(leg);
+  }
+
+  // Аэропортовая башня и самолёт на площадке.
+  const airport = new THREE.Group(); scene.add(airport); airport.position.set(250, 0, -330);
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(14, 54, 14), mat(0xd6d2c8));
+  tower.position.set(0, 27, 0); airport.add(tower);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(20, 7, 20), mat(0x596c7c));
+  cab.position.set(0, 55, 0); airport.add(cab);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(23, 2, 23), mat(0xeee6d4));
+  roof.position.set(0, 60, 0); airport.add(roof);
+  const runway = new THREE.Mesh(new THREE.BoxGeometry(155, 0.25, 54), mat(0x45494d));
+  runway.position.set(-100, 0.08, 0); airport.add(runway);
+  for (let i = 0; i < 9; i++) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(8, 0.3, 1.2), mat(0xe5e1d5));
+    stripe.position.set(-165 + i * 16, 0.25, 0); airport.add(stripe);
+  }
+  const plane = new THREE.Group(); airport.add(plane); plane.position.set(-95, 3, 0);
+  const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 48, 8), mat(0xe8e4d9));
+  fuselage.rotation.z = Math.PI / 2; plane.add(fuselage);
+  const wings = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 30), mat(0xc9cbd0));
+  wings.position.set(0, 0, 1); plane.add(wings);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(7, 0.7, 11), mat(0xbfc4c9));
+  tail.position.set(-19, 3, 0); plane.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(7, 6, 0.8), mat(0xbfc4c9));
+  fin.position.set(-19, 5, 0); plane.add(fin);
+
+  // Небольшой район домиков рядом с парком.
+  for (let i = 0; i < 18; i++) {
+    const x = 220 + (i % 6) * 19, z = 205 + Math.floor(i / 6) * 18;
+    const house = new THREE.Group(); scene.add(house);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(13, 9, 12), mat(i % 3 ? 0xd6c5a0 : 0xb8c0b7));
+    body.position.y = 4.5; house.add(body);
+    const roofH = new THREE.Mesh(new THREE.ConeGeometry(10, 7, 4), mat(0x9a5a4a));
+    roofH.position.y = 12; roofH.rotation.y = Math.PI / 4; house.add(roofH);
+    house.position.set(x, 0, z);
+  }
+}
+
+function collide(p, r) {
+  for (const b of BLD) {
+    if (p.y > b.h + r) continue;
+    const dx = p.x - b.x, dz = p.z - b.z, ox = b.hx + r - Math.abs(dx), oz = b.hz + r - Math.abs(dz);
+    if (ox > 0 && oz > 0) { if (ox < oz) p.x += Math.sign(dx || 1) * ox; else p.z += Math.sign(dz || 1) * oz; }
+  }
+  p.x = Math.max(-480, Math.min(480, p.x)); p.z = Math.max(-480, Math.min(480, p.z));
+}
+
+function buildHangarStage() {
+  hangarStageGroup = new THREE.Group();
+  
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(4.0, 4.3, 0.5, 32),
+    new THREE.MeshStandardMaterial({ color: 0x3a414c, metalness: 0.3, roughness: 0.5 })
+  );
+  base.position.y = -0.25;
+  hangarStageGroup.add(base);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(3.9, 0.09, 16, 40),
+    new THREE.MeshBasicMaterial({ color: 0xd1181f })
+  );
+  ring.rotation.x = Math.PI / 2;
+  hangarStageGroup.add(ring);
+
+  const l1 = new THREE.PointLight(0xffffff, 1.3, 40); l1.position.set(3, 5, 5);
+  const l2 = new THREE.PointLight(0xd1181f, 1.2, 30); l2.position.set(-5, 1, -3);
+  hangarStageGroup.add(l1, l2);
+  hangarStageGroup.position.set(0, 600, 0);
+  scene.add(hangarStageGroup);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* =========================================================================
+   ПРОМЗОНА: заправки, резервуары, электростанция (цели с большим чёрным дымом)
+   Все они — обычные записи BLD, поэтому коллизии, урон и цели дронов работают как у домов.
+   ========================================================================= */
+
+const IND_MAT = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, metalness: 0.15 });
+const IND = { tank: IND_MAT(0xd8d4cc), roof: IND_MAT(0x555a60), tower: IND_MAT(0xb9b5ae), boiler: IND_MAT(0x8f969c), stack: IND_MAT(0xb04030),
+              white: IND_MAT(0xf2f2f2), store: IND_MAT(0xe8e2d0), red: IND_MAT(0xcc2222), pipe: IND_MAT(0x4a6a8a), dark: IND_MAT(0x2a2e35) };
+
+// Какие ячейки города занимают промзона и заправки: 'cx,cz,ox,oz' -> тип
+const SPECIAL_SLOTS = {
+  // электростанция: целый квартал (2 градирни, котельная, труба)
+  '150,-150,-21,-21': 'tower', '150,-150,21,-21': 'tower', '150,-150,-21,21': 'boiler', '150,-150,21,21': 'stack',
+  // нефтебаза: 4 больших круглых резервуара
+  '-150,150,-21,-21': 'tank', '-150,150,21,-21': 'tank', '-150,150,-21,21': 'tank', '-150,150,21,21': 'tank',
+  // заправки
+  '-250,-50,21,-21': 'gas', '-50,-250,-21,21': 'gas', '50,150,21,21': 'gas', '250,50,-21,-21': 'gas',
+  '150,250,21,-21': 'gas', '-150,-50,-21,21': 'gas', '50,-50,-21,-21': 'gas', '-250,250,21,21': 'gas'
+};
+
+function buildIndustrial(type, x, z) {
+  const add = (geo, mat, px, py, pz, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = m.receiveShadow = true; (parent || scene).add(m); return m; };
+  const decor = new THREE.Group(); scene.add(decor);
+  let mesh, hx, hz, h, hp;
+  if (type === 'tank') {
+    h = 18; hx = hz = 16; hp = 2;
+    mesh = add(new THREE.CylinderGeometry(16, 16, h, 28), IND.tank, x, h / 2, z);
+    add(new THREE.CylinderGeometry(16.4, 16.4, 0.8, 28), IND.roof, x, h + 0.4, z, decor);
+    add(new THREE.BoxGeometry(1.2, h, 1.2), IND.dark, x + 16.3, h / 2, z, decor);
+  } else if (type === 'tower') {
+    h = 48; hx = hz = 16; hp = 3;
+    mesh = add(new THREE.CylinderGeometry(11, 16, h, 28), IND.tower, x, h / 2, z);
+  } else if (type === 'boiler') {
+    h = 30; hx = 17; hz = 15; hp = 3;
+    mesh = add(new THREE.BoxGeometry(34, h, 30), IND.boiler, x, h / 2, z);
+    for (const px of [-9, 0, 9]) { const p = add(new THREE.CylinderGeometry(1.2, 1.2, 30, 10), IND.pipe, x + px, h + 1.5, z, decor); p.rotation.x = Math.PI / 2; }
+  } else if (type === 'stack') {
+    h = 70; hx = hz = 5; hp = 2;
+    mesh = add(new THREE.CylinderGeometry(3, 4.5, h, 16), IND.stack, x, h / 2, z);
+    add(new THREE.CylinderGeometry(3.4, 3.4, 6, 16), IND.white, x, 58, z, decor);
+  } else { // gas: магазин + навес с колонками
+    h = 6; hx = 14; hz = 18; hp = 1;
+    mesh = add(new THREE.BoxGeometry(22, h, 12), IND.store, x, h / 2, z - 10);
+    add(new THREE.BoxGeometry(26, 0.8, 14), IND.red, x, 7.2, z + 8, decor);
+    for (const px of [-11, 11]) add(new THREE.BoxGeometry(0.8, 7, 0.8), IND.white, x + px, 3.5, z + 8, decor);
+    for (const px of [-5, 5]) add(new THREE.BoxGeometry(1.2, 2.2, 1.2), IND.red, x + px, 1.1, z + 8, decor);
+  }
+  mesh.position.set(mesh.position.x, h / 2, mesh.position.z);
+  BLD.push({ x, z, hx, hz, h, h0: h, hp, hpMax: hp, mesh, ac: decor, big: true });
+}
+
+/* =========================================================================
+   3D-МОДЕЛИ: оружие, дроны, техника, солдаты
+   ========================================================================= */
+
+function createAK74Model() {
+  playerGroup = new THREE.Group();
+  scene.add(playerGroup);
+  playerGroup.position.set(0, 1.7, 0);
+
+  gunGroup = new THREE.Group();
+
+  const blackMetal = new THREE.MeshStandardMaterial({ color: 0x1a1c20, metalness: 0.5, roughness: 0.4 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e3819, roughness: 0.65 });
+  const bakeliteMagMat = new THREE.MeshStandardMaterial({ color: 0x9e3c1b, roughness: 0.4, metalness: 0.1 });
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.09, 0.38), blackMetal);
+  gunGroup.add(receiver);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.35), woodMat);
+  stock.position.set(0, -0.02, 0.32);
+  stock.rotation.x = -0.12;
+  gunGroup.add(stock);
+
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.075, 0.22), woodMat);
+  handguard.position.set(0, -0.01, -0.26);
+  gunGroup.add(handguard);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.24, 0.08), bakeliteMagMat);
+  mag.position.set(0, -0.15, -0.08);
+  mag.rotation.x = -0.35;
+  gunGroup.add(mag);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.48, 12), blackMetal);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.015, -0.5);
+  gunGroup.add(barrel);
+
+  muzzleFlashMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0 })
+  );
+  muzzleFlashMesh.position.set(0, 0.015, -0.8);
+  gunGroup.add(muzzleFlashMesh);
+
+  gunGroup.position.set(0.2, -0.18, -0.42);
+  gunGroup.visible = false;
+  camera.add(gunGroup);
+}
+
+function createFPVQuadModel() {
+  const g = new THREE.Group();
+  const M = (c, m = 0.3, r = 0.6) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r });
+  const carbon = M(0x15171a, 0.5, 0.45), orange = M(0xff6a1a, 0.2, 0.5), metal = M(0x8a9099, 0.9, 0.3), black = M(0x050505, 0.2, 0.8);
+  const add = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); g.add(o); return o; };
+  add(new THREE.BoxGeometry(0.34, 0.02, 0.7), carbon, 0, 0, 0);
+  add(new THREE.BoxGeometry(0.3, 0.02, 0.6), carbon, 0, 0.12, 0);
+  [[-0.12, -0.25], [0.12, -0.25], [-0.12, 0.25], [0.12, 0.25]].forEach(([x, z]) => add(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 6), metal, x, 0.06, z));
+  [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(([sx, sz]) => {
+    const arm = add(new THREE.BoxGeometry(0.05, 0.015, 0.78), carbon, sx * 0.28, 0.0, sz * 0.28);
+    arm.rotation.y = sx * sz * Math.PI / 4 * -1;
+    add(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 12), metal, sx * 0.55, 0.04, sz * 0.55);
+    add(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 8), orange, sx * 0.55, 0.09, sz * 0.55);
+    const prop = add(new THREE.BoxGeometry(0.62, 0.006, 0.05), black, sx * 0.55, 0.11, sz * 0.55);
+    prop.rotation.y = sx * Math.PI / 5;
+    const prop2 = prop.clone(); prop2.rotation.y += Math.PI / 2; g.add(prop2);
+  });
+  add(new THREE.BoxGeometry(0.16, 0.08, 0.34), M(0x2a2f6e, 0.2, 0.6), 0, 0.21, -0.02);
+  add(new THREE.BoxGeometry(0.17, 0.02, 0.06), orange, 0, 0.21, -0.02);
+  add(new THREE.BoxGeometry(0.12, 0.12, 0.1), carbon, 0, 0.09, -0.36);
+  const lens = add(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 12), M(0x223355, 0.9, 0.1), 0, 0.09, -0.43); lens.rotation.x = Math.PI / 2;
+  add(new THREE.CylinderGeometry(0.008, 0.008, 0.3, 6), black, 0, 0.2, 0.33).rotation.x = 0.5;
+  g.visible = false;
+  scene.add(g);
+  fpvQuadGroup = g;
+}
+
+function createTailsitterDroneModel() {
+  fpvDroneGroup = new THREE.Group();
+
+  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xe0e4e8, metalness: 0.3, roughness: 0.4 });
+  const darkGreyMat = new THREE.MeshStandardMaterial({ color: 0x2d3238, metalness: 0.7, roughness: 0.3 });
+
+  const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 2.4, 16), whiteMat);
+  fuselage.rotation.x = Math.PI / 2;
+  fpvDroneGroup.add(fuselage);
+
+  for (let i = 0; i < 4; i++) {
+    const angle = (Math.PI / 4) + (i * Math.PI / 2);
+    const wingGroup = new THREE.Group();
+    wingGroup.rotation.z = angle;
+
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.04, 0.7), whiteMat);
+    wing.position.set(0.85, 0, 0);
+    wingGroup.add(wing);
+
+    const prop = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.01, 12), darkGreyMat);
+    prop.rotation.x = Math.PI / 2;
+    prop.position.set(1.7, 0, -0.4);
+    wingGroup.add(prop);
+    propRotators.push(prop);
+
+    fpvDroneGroup.add(wingGroup);
+  }
+
+  scene.add(fpvDroneGroup);
+  fpvDroneGroup.visible = false;
+}
+
+function createMilitaryTruck(x, z) {
+  const truck = new THREE.Group();
+  const green = new THREE.MeshStandardMaterial({ color: 0x4a5a32, roughness: 0.8 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.9 });
+  const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; truck.add(m); return m; };
+  add(new THREE.BoxGeometry(3.2, 2.8, 6.5), green, 0, 2.5, -1);
+  add(new THREE.BoxGeometry(3.2, 2.4, 2.6), green, 0, 2.3, 3.5);
+  add(new THREE.BoxGeometry(2.6, 1, 0.1), new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.2 }), 0, 2.9, 4.82);
+  add(new THREE.BoxGeometry(3.4, 0.5, 9.5), dark, 0, 0.9, 0.8);
+  for (const wz of [-2.5, 0.5, 3.8]) for (const wx of [-1.7, 1.7]) {
+    const w = add(new THREE.CylinderGeometry(0.75, 0.75, 0.5, 16), dark, wx, 0.75, wz); w.rotation.z = Math.PI / 2;
+  }
+  for (const hx of [-1.1, 1.1]) add(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfff2c0 }), hx, 1.3, 4.85);
+  const gun = new THREE.Group(); gun.rotation.order = 'YXZ'; gun.position.set(0, 4.4, -1.5);
+  const gm = new THREE.MeshStandardMaterial({ color: 0x1b1d20, metalness: 0.6, roughness: 0.5 });
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.7, 8), gm); ped.position.y = -0.3; truck.add(ped); ped.position.set(0, 4.1, -1.5);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8), gm); barrel.rotation.x = Math.PI / 2; barrel.position.z = 1.1; gun.add(barrel);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.8), gm); body.position.z = 0.1; gun.add(body);
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.05), gm); shield.position.set(0, 0.1, 0.55); gun.add(shield);
+  truck.add(gun);
+  truck.position.set(x, 0, z);
+  truck.userData = { speed: 9 + Math.random() * 5, gun, gcd: Math.random() };
+  scene.add(truck);
+  vehicles.push(truck);
+}
+
+function createSoldier(x, z) {
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
+  const add = (geo, m, px, py, pz) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); o.castShadow = true; g.add(o); return o; };
+  const green = mat(0x4a5a32);
+  add(new THREE.BoxGeometry(0.25, 0.8, 0.28), mat(0x3a4428), -0.15, 0.4, 0);
+  add(new THREE.BoxGeometry(0.25, 0.8, 0.28), mat(0x3a4428), 0.15, 0.4, 0);
+  add(new THREE.BoxGeometry(0.62, 0.72, 0.36), green, 0, 1.17, 0);
+  add(new THREE.BoxGeometry(0.16, 0.6, 0.18), green, -0.4, 1.15, 0.05);
+  add(new THREE.BoxGeometry(0.16, 0.5, 0.18), green, 0.38, 1.2, 0.25).rotation.x = -1.1;
+  add(new THREE.SphereGeometry(0.17, 12, 10), mat(0xd2a07a), 0, 1.7, 0);
+  add(new THREE.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x3b4a2b), 0, 1.72, 0);
+  add(new THREE.BoxGeometry(0.07, 0.1, 0.85), mat(0x16181b), 0.34, 1.28, 0.45);
+  g.position.set(x, 0, z); g.rotation.y = Math.random() * 6.28;
+  g.userData = { cd: Math.random(), hp: 1 };
+  scene.add(g); soldiers.push(g);
+}
+
+function createExtraWeapons() {
+  handInt = fpvDroneGroup.clone();
+  handInt.visible = false; handInt.scale.setScalar(0.09); handInt.position.set(0.22, -0.2, -0.5);
+  camera.add(handInt);
+  jamGroup = new THREE.Group();
+  const dark = new THREE.MeshStandardMaterial({ color: 0x23272d, roughness: 0.5, metalness: 0.4 });
+  const blue = new THREE.MeshBasicMaterial({ color: 0x44aaff });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.13, 0.42), dark); jamGroup.add(body);
+  const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.03, 0.05, 16), blue); dish.rotation.x = Math.PI / 2; dish.position.set(0, 0.02, -0.26); jamGroup.add(dish);
+  for (const x of [-0.04, 0.04]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.3, 6), dark); a.position.set(x, 0.2, 0.1); jamGroup.add(a); }
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.06), dark); grip.position.set(0, -0.12, 0.08); jamGroup.add(grip);
+  jamGroup.position.set(0.2, -0.18, -0.42); jamGroup.visible = false;
+  camera.add(jamGroup);
+  jamBubble = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  jamBubble.visible = false; scene.add(jamBubble);
+}
+
+// Копия FPV-дрона оператора (одна модель для всех дронов в игре)
+function makeFPVClone(scale) {
+  const holder = new THREE.Group(), m = fpvQuadGroup.clone(); m.visible = true; m.scale.setScalar(scale); m.rotation.y = Math.PI; holder.add(m);
+  const rotors = []; m.traverse(o => { if (o.isMesh && o.geometry.parameters && o.geometry.parameters.height === 0.006) rotors.push(o); });
+  return { holder, rotors };
+}
+
+/* =========================================================================
+   ЭФФЕКТЫ: дым, обломки, взрывы, частицы
+   ========================================================================= */
+
+function hitBuilding(p) {
+  for (const b of BLD) if (b.hp > 0 && p.y < b.h && Math.abs(p.x - b.x) < b.hx && Math.abs(p.z - b.z) < b.hz) return b;
+  return null;
+}
+
+function createSmoke(pos, n, color, mul, life) {
+  for (let i = 0; i < n; i++) {
+    const p = new THREE.Sprite(new THREE.SpriteMaterial({ map: fxTex, color: color || 0x333333, transparent: true, depthWrite: false, fog: false }));
+    p.scale.setScalar((5 + Math.random() * 6) * (mul || 1));
+    p.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 6, Math.random() * 3, (Math.random() - 0.5) * 6));
+    p.userData = { vel: new THREE.Vector3((Math.random() - 0.5) * 2, (2 + Math.random() * 3) * (life > 5 ? 2.2 : 1), (Math.random() - 0.5) * 2), life: life || 3.5, k: life > 5 ? 0.25 : 0.5 };
+    scene.add(p); particles.push(p);
+  }
+}
+
+function debris(pos, n, size) {
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshBasicMaterial({ color: 0x555a60 }));
+    m.position.copy(pos);
+    m.userData = { vel: new THREE.Vector3((Math.random() - 0.5) * 14, 6 + Math.random() * 10, (Math.random() - 0.5) * 14), life: 3 };
+    scene.add(m); casings.push(m);
+  }
+}
+
+function damageBuilding(b, dmg) {
+  const pos = new THREE.Vector3(b.x + (Math.random() - 0.5) * 20, Math.max(3, b.h * 0.8), b.z + (Math.random() - 0.5) * 20);
+  createExplosion(pos, 4); createSmoke(pos, 4);
+  if (b.big) { createExplosion(pos, 9); createSmoke(pos, 6, 0x0a0a0a, 3, 9); }  // промзона: большой чёрный дым
+  if (b.hp <= 0) return;
+  crumble(b, pos);
+  if (b.vis === undefined) b.vis = b.h;
+  b.hp--; if (!dmg) { matchDamage('bld', b.big ? 300 : 150); baseHit(b.big ? 'ind' : 'bld'); }
+  b.h = b.h0 * [0.15, 0.55, 0.8, 1][b.hp];   // реальная высота (для коллизий)
+  b.ac.visible = false; b.shake = 2.5; b.fire = b.big ? 60 : 15;  // визуально здание оседает плавно в updateBuildings
+  if (dmg) { state.hp -= dmg; updateHUD(); checkDefeat(); }
+}
+
+function blast(pos, r) {
+  createExplosion(pos, 3.5); createSmoke(pos, 3);
+  [...enemyDrones].forEach(d => { if (d.position.distanceTo(pos) < r) destroyDrone(d, true); });
+}
+
+let fxTex;
+
+function createExplosion(pos, scale) {
+  if (!fxTex) {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, '#fff'); gr.addColorStop(0.3, '#ffb030'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    fxTex = new THREE.CanvasTexture(c);
+  }
+  for (let i = 0; i < 14; i++) {
+    const p = new THREE.Sprite(new THREE.SpriteMaterial({ map: fxTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    p.scale.setScalar((0.6 + Math.random()) * scale * 1.6);
+    p.position.copy(pos);
+    p.userData = { vel: new THREE.Vector3((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9), life: 0.6 };
+    scene.add(p); particles.push(p);
+  }
+}
+
+function updateParticlesAndCasings(delta) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.position.addScaledVector(p.userData.vel, delta);
+    p.userData.life -= delta;
+    if (p.material) p.material.opacity = Math.max(0, Math.min(1, p.userData.life * (p.userData.k || 1)));
+
+    if (p.userData.life <= 0) {
+      scene.remove(p);
+      if (p.material) p.material.dispose();
+      if (p.geometry && p.userData.k) p.geometry.dispose();
+      particles.splice(i, 1);
+    }
+  }
+
+  for (let i = casings.length - 1; i >= 0; i--) {
+    const c = casings[i];
+    c.position.addScaledVector(c.userData.vel, delta);
+    c.userData.vel.y -= 9.8 * delta;
+    c.userData.life -= delta;
+
+    if (c.userData.life <= 0 || c.position.y < 0) {
+      scene.remove(c);
+      casings.splice(i, 1);
+    }
+  }
+}
+
+/* ---------- Горящие остовы, падающие военные, обрушение зданий ---------- */
+const dying = [], rubble = [];
+const RUBBLE_GEO = new THREE.BoxGeometry(1, 1, 1);
+const RUBBLE_MATS = [0x8a8782, 0x5e5c58, 0x74706a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 }));
+
+function detach(u) {
+  let i = vehicles.indexOf(u); if (i > -1) vehicles.splice(i, 1);
+  i = soldiers.indexOf(u); if (i > -1) soldiers.splice(i, 1);
+}
+
+// Машина: чернеет, горит ~10 с, дымит, остов уходит под землю
+function wreckVehicle(v) {
+  detach(v); matchEmit('kill', { kind: 'truck' }); matchDamage('truck', 150); baseHit('truck');
+  v.traverse(m => {
+    if (m.material && m.material.color) { m.material = m.material.clone(); m.material.color.setHex(0x1a1a1a); if (m.material.emissive) m.material.emissive.setHex(0); }
+  });
+  v.rotation.z = (Math.random() - 0.5) * 0.12; v.rotation.x = 0.04;
+  v.userData.speed = 0; v.userData.burn = 0;
+  createSmoke(v.position, 3);
+  dying.push({ o: v, kind: 'truck', t: 0, fx: 0 });
+}
+
+// Военный: отбрасывает взрывом, падает и лежит, потом исчезает
+function dieSoldier(s, from) {
+  detach(s); matchEmit('kill', { kind: 'soldier' }); matchDamage('soldier', 40); baseHit('soldier');
+  const dx = s.position.x - from.x, dz = s.position.z - from.z, l = Math.hypot(dx, dz) || 1;
+  createExplosion(s.position, 1.5);
+  dying.push({ o: s, kind: 'soldier', t: 0, vx: dx / l * 5, vz: dz / l * 5, vy: 4 + Math.random() * 3, fall: Math.random() < 0.5 ? 1 : -1 });
+}
+
+// Новая цель появляется в другом месте (режим оператора)
+function respawnTarget(kind) {
+  if (state.mode !== 'operator' || !state.active) return;
+  if (kind === 'truck') createMilitaryTruck([-300, -200, -100, 0, 100, 200, 300][Math.floor(Math.random() * 7)] + 4.5, (Math.random() - 0.5) * 500);
+  else createSoldier(...soldierSpot());
+}
+
+function clearWrecks() {
+  if (typeof clearAllies === 'function') clearAllies();
+  dying.forEach(d => scene.remove(d.o)); dying.length = 0;
+  rubble.forEach(r => scene.remove(r)); rubble.length = 0;
+}
+
+function updateDying(delta) {
+  for (let i = dying.length - 1; i >= 0; i--) {
+    const d = dying[i], o = d.o; d.t += delta;
+    if (d.kind === 'truck') {
+      d.fx -= delta;
+      if (d.fx <= 0 && d.t < 9) {
+        const burning = d.t < 6; d.fx = burning ? 0.25 : 0.8;
+        const p = o.position.clone(); p.x += (Math.random() - 0.5) * 2.5; p.y = 2.5 + Math.random() * 1.5; p.z += (Math.random() - 0.5) * 7;
+        if (burning) createExplosion(p, 1.1);
+        createSmoke(p, 1);
+      }
+      if (d.t > 9) o.position.y -= delta * 2.5;
+      if (d.t > 11.5) { scene.remove(o); dying.splice(i, 1); respawnTarget('truck'); }
+    } else {
+      if (d.t < 1.2) {
+        d.vy -= 18 * delta;
+        o.position.x += d.vx * delta; o.position.z += d.vz * delta;
+        o.position.y = Math.max(0.25, o.position.y + d.vy * delta);
+        o.rotation.x += (-Math.PI / 2 * d.fall - o.rotation.x) * Math.min(1, 6 * delta);
+      }
+      if (d.t > 4) o.position.y -= delta * 0.8;
+      if (d.t > 5.5) { scene.remove(o); dying.splice(i, 1); respawnTarget('soldier'); }
+    }
+  }
+}
+
+// Попадание в здание: летят обломки, пыль, на земле остаётся щебень
+function crumble(b, pos) {
+  for (let i = 0; i < 7; i++) {
+    const c = new THREE.Mesh(RUBBLE_GEO, RUBBLE_MATS[i % 3]);
+    c.scale.set(1 + Math.random() * 2.5, 1 + Math.random() * 2, 1 + Math.random() * 2.5);
+    c.position.copy(pos);
+    c.userData = { vel: new THREE.Vector3((Math.random() - 0.5) * 22, 4 + Math.random() * 12, (Math.random() - 0.5) * 22), life: 5 };
+    scene.add(c); casings.push(c);
+  }
+  createSmoke(new THREE.Vector3(b.x, 4, b.z), 3, 0xaaa59c);
+}
+
+// Плавное оседание здания, тряска, пыль, затем пожар и дым
+function updateBuildings(delta) {
+  for (const b of BLD) {
+    if (b.vis === undefined) continue;
+    if (b.mx === undefined) { b.mx = b.mesh.position.x; b.mz = b.mesh.position.z; }
+    b.fx = (b.fx || 0) - delta;
+    if (b.vis > b.h + 0.05) {
+      b.vis = Math.max(b.h, b.vis - (4 + b.h0 * 0.18) * delta);
+      b.mesh.position.x = b.mx + (Math.random() - 0.5) * 0.7; b.mesh.position.z = b.mz + (Math.random() - 0.5) * 0.7;
+      if (b.fx <= 0) { b.fx = 0.3; createSmoke(new THREE.Vector3(b.x + (Math.random() - 0.5) * 24, b.vis, b.z + (Math.random() - 0.5) * 24), 2, 0xaaa59c); }
+    } else if (b.shake > 0) { b.shake = 0; b.mesh.position.x = b.mx; b.mesh.position.z = b.mz; }
+    b.mesh.scale.y = b.vis / b.h0; b.mesh.position.y = b.vis / 2;
+    if (b.fire > 0) {
+      b.fire -= delta;
+      if (b.fx <= 0) { b.fx = b.big ? 0.3 : 0.8; const p = new THREE.Vector3(b.x + (Math.random() - 0.5) * 20, b.vis + 1, b.z + (Math.random() - 0.5) * 20); if (b.big) createSmoke(p, 2, 0x0a0a0a, 2.6, 9); else createSmoke(p, 1); if (Math.random() < (b.big ? 0.3 : 0.5)) createExplosion(p, b.big ? 2.5 : 1.2); }
+    }
+  }
+}
+
+/* =========================================================================
+   ОРУЖИЕ СОЛДАТА: АК-74, перехватчик, глушилка
+   ========================================================================= */
+
+function showWeapon() {
+  const s = state.mode === 'soldier' && state.active;
+  gunGroup.visible = s && state.weapon === 'ak';
+  handInt.visible = s && state.weapon === 'int';
+  jamGroup.visible = s && state.weapon === 'jam';
+  document.querySelectorAll('.wbtn').forEach(b => b.classList.toggle('active', b.dataset.w === state.weapon));
+}
+
+function setWeapon(w) {
+  if (!['ak', 'int', 'jam'].includes(w) || state.mode !== 'soldier') return;
+  state.weapon = w; isFiring = false; showWeapon(); updateHUD();
+}
+
+function launchInterceptor() {
+  if (!state.active || state.mode !== 'soldier' || intCd > 0) return;
+  camera.updateMatrixWorld(true);
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  let best = null, ba = 0.85;
+  enemyDrones.forEach(d => {
+    const v = d.position.clone().sub(camera.position);
+    if (v.length() > 320 || d.userData.falling) return;
+    const a = v.normalize().angleTo(fwd);
+    if (a < ba) { ba = a; best = d; }
+  });
+  
+  const m = fpvDroneGroup.clone(); m.visible = true; m.scale.setScalar(0.42);
+  m.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone(); if (o.material.color) o.material.color.setHex(0x42d7ff); } } );
+  m.position.copy(camera.position).add(new THREE.Vector3(0.3, -0.3, -0.6).applyQuaternion(camera.quaternion));
+  m.userData = { target: best, t: 0, vel: fwd.clone().multiplyScalar(48).add(new THREE.Vector3(0, 5, 0)) };
+  scene.add(m); missiles.push(m);
+  intCd = 10 - 1.2 * lv('i_rel');
+  updateHUD();
+}
+
+function updateWeapons(delta) {
+  if (intCd > 0) intCd = Math.max(0, intCd - delta);
+  const want = state.mode === 'soldier' && state.weapon === 'jam' && isFiring && !jamLock;
+  if (want && jamEn > 0) { jamOn = true; jamEn -= 22 * delta; if (jamEn <= 0) { jamEn = 0; jamLock = true; } }
+  else { jamOn = false; jamEn = Math.min(100, jamEn + 12 * delta); if (jamLock && jamEn >= 40) jamLock = false; }
+  jamBubble.visible = jamOn;
+  if (jamOn) {
+    const R = jamRange();
+    jamBubble.scale.setScalar(R); jamBubble.position.copy(playerGroup.position);
+    jamBubble.material.opacity = 0.07 + 0.03 * Math.sin(clock.elapsedTime * 20);
+    [...enemyDrones].forEach(d => {
+      const u = d.userData;
+      if (u.falling || d.position.distanceTo(playerGroup.position) > R) return;
+      u.jam = 0.25; u.jamT += delta; u.roll += delta;
+      if (u.jamT > 0.8 && u.roll > 0.5) {
+        u.roll = 0;
+        if (Math.random() < jamChance()) {
+          if (Math.random() < 0.5) destroyDrone(d, true);
+          else Object.assign(u, { falling: true, credit: true, vy: 0, vx: (Math.random() - 0.5) * 6, vz: (Math.random() - 0.5) * 6 });
+        }
+      }
+    });
+  }
+  for (let i = missiles.length - 1; i >= 0; i--) {
+    const m = missiles[i], u = m.userData; u.t += delta;
+    const tp = u.target && u.target.parent ? u.target.position : null;
+    if (tp) u.vel.lerp(tp.clone().sub(m.position).normalize().multiplyScalar(65), Math.min(1, delta * 4));
+    m.position.addScaledVector(u.vel, delta);
+    m.lookAt(m.position.clone().sub(u.vel));
+    if ((tp && m.position.distanceTo(tp) < 4.5) || u.t > 7 || hitBuilding(m.position)) {
+      blast(m.position, 8 + 2 * lv('i_rad'));
+      scene.remove(m); missiles.splice(i, 1);
+    }
+  }
+  hudT += delta; if (hudT > 0.15) { hudT = 0; updateHUD(); }
+}
+
+function updateFPSPlayer(delta) {
+  camera.rotation.set(mousePitch, mouseYaw, 0);
+
+  const moveDir = new THREE.Vector3();
+  if (keys.w) moveDir.z -= 1;
+  if (keys.s) moveDir.z += 1;
+  if (keys.a) moveDir.x -= 1;
+  if (keys.d) moveDir.x += 1;
+
+  if (moveDir.lengthSq() > 0) moveDir.normalize();
+  moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseYaw);
+  
+  playerGroup.position.addScaledVector(moveDir, 16 * delta);
+  collide(playerGroup.position, 0.8);
+  camera.position.copy(playerGroup.position);
+
+  if (state.weapon === 'ak' && isFiring && clock.getElapsedTime() - lastShotTime > 0.11 * (1 - 0.08 * lv("s_rate"))) {
+    shootAK74();
+    lastShotTime = clock.getElapsedTime();
+  }
+
+  if (gunRecoilTimer > 0) {
+    gunRecoilTimer -= delta;
+    gunGroup.position.z = THREE.MathUtils.lerp(gunGroup.position.z, -0.42, delta * 25);
+    gunGroup.rotation.x = THREE.MathUtils.lerp(gunGroup.rotation.x, 0, delta * 25);
+  }
+}
+
+const interceptors = [];
+
+function clearInterceptors() { interceptors.forEach(i => scene.remove(i)); interceptors.length = 0; }
+
+function assistAim(mv, pos) {
+  const len = mv.length(); if (len < 0.3) return;
+  const dir = mv.clone().normalize();
+  let best = null, bd = 60;
+  const consider = (u, h) => {
+    const t = new THREE.Vector3(u.position.x, h, u.position.z).sub(pos), d = t.length();
+    if (d < bd && d > 2 && t.clone().normalize().dot(dir) > 0.7) { bd = d; best = t; }
+  };
+  vehicles.forEach(v => consider(v, 3)); soldiers.forEach(s => consider(s, 1.2));
+  if (!best) return;
+  const k = 0.5 * (1 - bd / 60) + 0.25;
+  mv.copy(dir.lerp(best.normalize(), k).normalize().multiplyScalar(len));
+}
+
+function startReload() {
+  if (state.reloading || state.ammo >= magSize()) return;
+  state.reloading = true; updateHUD();
+  setTimeout(() => { state.reloading = false; state.ammo = magSize(); updateHUD(); }, relMs());
+}
+
+function addTracer(a, b, color) {
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color, transparent: true, fog: false }));
+  l.userData = { vel: new THREE.Vector3(), life: 0.1, k: 10 };
+  scene.add(l); particles.push(l);
+}
+
+function fireShot(laser) {
+  camera.updateMatrixWorld(true);
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const hits = rc.intersectObjects(enemyDrones, true);
+  const end = hits.length ? hits[0].point : rc.ray.at(250, new THREE.Vector3());
+  const from = new THREE.Vector3();
+  if (laser) from.set(0.3, -0.3, -0.5).applyMatrix4(camera.matrixWorld);
+  else muzzleFlashMesh.getWorldPosition(from);
+  addTracer(from, end, laser ? 0x44ff99 : 0xffd27a);
+  if (!hits.length) return;
+  let o = hits[0].object;
+  while (o.parent && !o.userData.hp && o.parent !== scene) o = o.parent;
+  if (o.userData.hp) {
+    const dmgv = 1 + 0.35 * lv(laser ? "o_dmg" : "s_dmg"); matchDamage('drone', Math.min(dmgv, o.userData.hp) * 50); o.userData.hp -= dmgv;
+    createExplosion(end, laser ? 0.8 : 0.6);
+    if (o.userData.hp <= 0) destroyDrone(o);
+  }
+}
+
+function shootAK74() {
+  if (state.reloading) return;
+  if (state.ammo <= 0) { startReload(); return; }
+  state.ammo--; updateHUD();
+  muzzleFlashMesh.material.opacity = 1;
+  setTimeout(() => muzzleFlashMesh.material.opacity = 0, 40);
+  gunGroup.position.z = -0.36;
+  gunGroup.rotation.x = 0.07;
+  gunRecoilTimer = 0.08;
+  ejectBulletCasing();
+  fireShot(false);
+}
+
+function ejectBulletCasing() {
+  const casing = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.008, 0.008, 0.03, 6),
+    new THREE.MeshBasicMaterial({ color: 0xd4af37 })
+  );
+  casing.position.copy(playerGroup.position).add(new THREE.Vector3(0.2, -0.1, -0.3));
+  casing.userData = {
+    vel: new THREE.Vector3(1.5 + Math.random(), 2 + Math.random(), -0.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), mouseYaw),
+    life: 1.2
+  };
+  scene.add(casing);
+  casings.push(casing);
+}
+
+let targetMarkerMesh = null;
+
+function createTargetMarker() {
+  const geo = new THREE.RingGeometry(1.2, 1.5, 32);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x34d399, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false });
+  targetMarkerMesh = new THREE.Mesh(geo, mat);
+  targetMarkerMesh.visible = false;
+  scene.add(targetMarkerMesh);
+}
+
+function updateInterceptorTargeting() {
+  if (!targetMarkerMesh) createTargetMarker();
+  if (state.mode !== 'soldier' || state.weapon !== 'int' || !state.active) {
+    targetMarkerMesh.visible = false;
+    return;
+  }
+
+  camera.updateMatrixWorld(true);
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  let best = null, ba = 0.35;
+
+  enemyDrones.forEach(d => {
+    const v = d.position.clone().sub(camera.position);
+    if (v.length() > 300 || d.userData.falling) return;
+    const a = v.normalize().angleTo(fwd);
+    if (a < ba) { ba = a; best = d; }
+  });
+
+  if (best) {
+    targetMarkerMesh.position.copy(best.position);
+    targetMarkerMesh.lookAt(camera.position);
+    targetMarkerMesh.visible = true;
+  } else {
+    targetMarkerMesh.visible = false;
+  }
+}
+
+/* =========================================================================
+   ВРАГИ: дроны, техника, военные, РЭБ
+   ========================================================================= */
+
+function spawnEnemyDrone() {
+  const drone = new THREE.Group();
+  const fm = makeFPVClone(2.6), rotors = fm.rotors; drone.add(fm.holder);
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(2.6, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
+  drone.add(hit);
+  const t = state.mode === 'soldier' ? playerGroup.position : fpvDroneGroup.position;
+  const dist = 110 + Math.random() * 50, a = Math.random() * Math.PI * 2;
+  drone.position.set(t.x + Math.cos(a) * dist, 18 + Math.random() * 30, t.z + Math.sin(a) * dist);
+  drone.userData = { hp: 2, speed: 10 + Math.random() * 6, rotors, jam: 0, jamT: 0, roll: 0, tt: 'player' };
+  const rr = Math.random(), alive = BLD.filter(b => b.hp > 0 && Math.hypot(b.x - t.x, b.z - t.z) < 130), units = vehicles.concat(soldiers).filter(u => Math.hypot(u.position.x - t.x, u.position.z - t.z) < 130);
+  if (rr >= 0.9 && rr < 0.95 && alive.length) { const b = alive[Math.floor(Math.random() * alive.length)]; Object.assign(drone.userData, { tt: 'bld', b, tp: new THREE.Vector3(b.x, 6, b.z) }); }
+  else if (rr >= 0.95 && units.length) Object.assign(drone.userData, { tt: 'unit', unit: units[Math.floor(Math.random() * units.length)] });
+  if (hitBuilding(drone.position)) drone.position.y = 140;
+  drone.traverse(o => { if (o.isMesh && o !== hit) o.castShadow = true; });
+  scene.add(drone);
+  enemyDrones.push(drone);
+}
+
+function soldierSpot() {
+  const a = (Math.random() - 0.5) * 180, side = Math.random() < 0.5 ? 10.5 : -10.5;
+  return Math.random() < 0.5 ? [a, side] : [side, a];
+}
+
+function killUnit(u) {
+  createExplosion(u.position, 3); createSmoke(u.position, 6); debris(u.position, 6, 0.5);
+  scene.remove(u);
+  let i = vehicles.indexOf(u); const truck = i > -1;
+  if (truck) vehicles.splice(i, 1); else { i = soldiers.indexOf(u); if (i > -1) soldiers.splice(i, 1); }
+  state.hp -= 0.5; updateHUD(); checkDefeat();
+  setTimeout(() => {
+    const r = [-300, -200, -100, 0, 100, 200, 300][Math.floor(Math.random() * 7)];
+    if (truck) createMilitaryTruck(r + 4.5, (Math.random() - 0.5) * 500); else createSoldier(...soldierSpot());
+  }, 12000);
+}
+
+function soldierCanSee(s, d) {
+  const dx = d.position.x - s.position.x, dz = d.position.z - s.position.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist > 160 || dist < 1) return false;
+  let diff = Math.atan2(dx, dz) - s.rotation.y;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+  if (Math.abs(diff) > 0.96) return false;
+  return !lineBlocked(new THREE.Vector3(s.position.x, 1.5, s.position.z), d.position, 3);
+}
+
+function updateSoldiers(delta) {
+  soldiers.forEach(s => {
+    const u = s.userData; u.cd -= delta;
+    if (u.scan === undefined) u.scan = (Math.random() < 0.5 ? 1 : -1) * 0.5;
+    let best = null, bd = 160;
+    const targets = state.mode === 'operator' ? [fpvDroneGroup] : enemyDrones;
+    targets.forEach(d => { if (!soldierCanSee(s, d)) return; const dd = d.position.distanceTo(s.position); if (dd < bd) { bd = dd; best = d; } });
+    if (!best) { s.rotation.y += u.scan * delta; return; }
+    s.rotation.y = Math.atan2(best.position.x - s.position.x, best.position.z - s.position.z);
+    if (best === fpvDroneGroup) {
+      u.icd = (u.icd === undefined ? 3 + Math.random() * 6 : u.icd) - delta;
+      /* перехватчик временно отключён */
+    }
+    if (u.cd > 0) return;
+    u.cd = 0.5 + Math.random() * 0.4;
+    addTracer(new THREE.Vector3(s.position.x, 1.4, s.position.z), best.position.clone(), 0xffd27a);
+    if (best === fpvDroneGroup) {
+      if (state.op && state.op.grace <= 0 && Math.random() < 0.002 + 0.01 * (1 - bd / 160)) droneShotDown();
+      return;
+    }
+    if (Math.random() < Math.max(0.05, 0.35 - bd / 600)) {
+      best.userData.hp -= 1; createExplosion(best.position, 0.5);
+      if (best.userData.hp <= 0) destroyDrone(best, false);
+    }
+  });
+}
+
+function setupOperatorEnemies() {
+  clearInterceptors();
+  while (soldiers.length) scene.remove(soldiers.pop());
+  while (vehicles.length) scene.remove(vehicles.pop());
+  [-200, -100, 0, 100, 200].forEach(lane => {
+    for (let k = 0; k < 3; k++) {
+      createMilitaryTruck(lane + (k % 2 ? 4.5 : -4.5), -250 + k * 250 + (Math.random() - 0.5) * 60);
+    }
+  });
+  for (let g = 0; g < 3; g++) {
+    const sp = soldierSpot(), alongZ = Math.abs(sp[0]) === 10.5;
+    [-4, 0, 4].forEach(o => createSoldier(alongZ ? sp[0] : sp[0] + o, alongZ ? sp[1] + o : sp[1]));
+  }
+}
+
+function addJammer(truck) {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffa020, metalness: 0.4, roughness: 0.5 });
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3, 6), m); mast.position.set(1.1, 5.4, 1); truck.add(mast);
+  const dish = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.4, 12), m); dish.position.set(1.1, 7, 1); truck.add(dish);
+  truck.userData.jam = true;
+}
+
+function updateEnemyEW(delta) {
+  const o = state.op; if (!o || !state.active) return;
+  updateBurning(delta);
+  if (!state.active) return;
+  const dp = fpvDroneGroup.position;
+  let jam = false;
+  for (const v of vehicles) if (v.userData.jam && !(v.userData.burn > 0) && Math.hypot(dp.x - v.position.x, dp.z - v.position.z) < 80 && dp.y < 90) { jam = true; break; }
+  if (jam && !o.jammed) opToast(ICON_WARN + ' РЭБ: ПОМЕХИ');
+  o.jammed = jam;
+  for (let i = interceptors.length - 1; i >= 0; i--) {
+    const it = interceptors[i], u = it.userData;
+    u.life -= delta;
+    const want = new THREE.Vector3().subVectors(dp, it.position).normalize();
+    u.dir.lerp(want, Math.min(1, 1.7 * delta)).normalize();
+    it.position.addScaledVector(u.dir, 36 * delta);
+    it.lookAt(it.position.clone().sub(u.dir));
+    const d = it.position.distanceTo(dp);
+    if (d < 2.2) {
+      if (o.grace > 0) continue;
+      createExplosion(it.position, 4); scene.remove(it); interceptors.splice(i, 1);
+      droneShotDown(); return;
+    }
+    if (u.life <= 0 || hitBuilding(it.position) || it.position.y < 0.5) { createExplosion(it.position, 3); scene.remove(it); interceptors.splice(i, 1); }
+  }
+}
+
+function removeTarget(u) {
+  scene.remove(u);
+  let i = vehicles.indexOf(u); if (i > -1) vehicles.splice(i, 1);
+  i = soldiers.indexOf(u); if (i > -1) soldiers.splice(i, 1);
+}
+
+function lineBlocked(a, b, step = 2) {
+  const p = new THREE.Vector3(), n = Math.ceil(a.distanceTo(b) / step);
+  for (let i = 1; i < n; i++) { p.lerpVectors(a, b, i / n); if (hitBuilding(p)) return true; }
+  return false;
+}
+
+function updateTruckGuns(delta) {
+  const o = state.op; if (!o || !state.active) return;
+  o.grace = Math.max(0, o.grace - delta);
+  const dp = fpvDroneGroup.position;
+  for (const v of vehicles) {
+    const g = v.userData.gun; if (!g || v.userData.burn > 0) continue;
+    const mp = new THREE.Vector3(v.position.x, 4.4, v.position.z - 1.5);
+    const dx = dp.x - mp.x, dy = dp.y - mp.y, dz = dp.z - mp.z, dist = Math.hypot(dx, dy, dz);
+    v.userData.gcd = (v.userData.gcd || 0) - delta;
+    if (dist > 170) continue;
+    v.userData.seen = (v.userData.seen || 0) - delta;
+    if (v.userData.seen <= 0) { v.userData.vis = !lineBlocked(mp, dp); v.userData.seen = 0.1; }
+    if (!v.userData.vis) continue;
+    const wantY = Math.atan2(dx, dz), wantX = -Math.atan2(dy, Math.hypot(dx, dz));
+    const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+    const eY = wrap(wantY - g.rotation.y), eX = wantX - g.rotation.x, st = 3.5 * delta;
+    g.rotation.y += Math.max(-st, Math.min(st, eY)); g.rotation.x += Math.max(-st, Math.min(st, eX));
+    if (v.userData.gcd > 0 || Math.abs(eY) > 0.15 || Math.abs(eX) > 0.15) continue;
+    v.userData.gcd = 0.3;
+    const dir = new THREE.Vector3(dx, dy, dz).normalize();
+    const miss = new THREE.Vector3((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+    addTracer(mp.clone().addScaledVector(dir, 2.2), dp.clone().add(miss), 0xff5a3a);
+    if (o.grace <= 0 && Math.random() < 0.004 + 0.02 * (1 - dist / 170)) { droneShotDown(); return; }
+  }
+}
+
+function destroyDrone(drone, credit = true) {
+  const i = enemyDrones.indexOf(drone);
+  if (i < 0) return;
+  scene.remove(drone);
+  enemyDrones.splice(i, 1);
+  createExplosion(drone.position, 2.2);
+  if (credit) {
+    state.kills++;
+    updateHUD();
+    matchEmit('kill', { kind: 'drone' });
+  }
+}
+
+function updateEnemyDrones(delta) {
+  const pp = state.mode === 'soldier' ? playerGroup.position : fpvDroneGroup.position;
+  for (let i = enemyDrones.length - 1; i >= 0; i--) {
+    const d = enemyDrones[i], u = d.userData;
+    if (!d.parent) continue;
+    u.rotors.forEach(r => r.rotation.y += 50 * delta);
+    if (u.falling) {
+      u.vy -= 22 * delta; d.position.x += u.vx * delta; d.position.y += u.vy * delta; d.position.z += u.vz * delta;
+      d.rotation.x += 4 * delta; d.rotation.z += 3 * delta;
+      const hb = hitBuilding(d.position);
+      if (hb || d.position.y <= 0.5) destroyDrone(d, u.credit);
+      continue;
+    }
+    const hb = hitBuilding(d.position);
+    if (hb) { damageBuilding(hb, 1); destroyDrone(d, false); continue; }
+    let tp = pp;
+    if (u.tt === 'bld') { if (u.b.hp <= 0) u.tt = 'player'; else { u.tp.y = Math.max(6, u.b.h * 0.6); tp = u.tp; } }
+    if (u.tt === 'unit') { if (!u.unit.parent) u.tt = 'player'; else tp = u.unit.position.clone().setY(u.unit.position.y + 1.5); }
+    let sp = u.speed;
+    u.jam = Math.max(0, u.jam - delta);
+    const dir = new THREE.Vector3().subVectors(tp, d.position).normalize();
+    d.lookAt(tp.x, d.position.y, tp.z);
+    if (u.jam > 0) {
+      sp *= 0.4;
+      d.position.x += (Math.random() - 0.5) * 0.5; d.position.y += (Math.random() - 0.5) * 0.5;
+      d.rotation.z = (Math.random() - 0.5) * 0.6;
+    }
+    d.position.addScaledVector(dir, sp * delta);
+    const dist = d.position.distanceTo(tp);
+    if (u.tt === 'player' && dist < 4.5) {
+      createExplosion(d.position, 2.0);
+      state.hp -= 8; destroyDrone(d, false); updateHUD(); checkDefeat();
+    } else if (u.tt === 'bld' && dist < 4) { damageBuilding(u.b, 1); destroyDrone(d, false); }
+    else if (u.tt === 'unit' && dist < 3.5) { killUnit(u.unit); destroyDrone(d, false); }
+  }
+}
+
+function updateVehicles(delta) {
+  vehicles.forEach(v => {
+    v.position.z += v.userData.speed * delta;
+    if (v.position.z > 300) v.position.z = -300;
+  });
+}
+
+/* =========================================================================
+   РЕЖИМ ОПЕРАТОРА: FPV-дрон, камера, камикадзе
+   ========================================================================= */
+
+let opModel = null;
+
+function placeOpCamera(delta) {
+  const o = state.op, pos = fpvDroneGroup.position, third = o.view === 'third';
+  if (!opModel) { opModel = fpvQuadGroup.clone(); opModel.scale.setScalar(1.6); scene.add(opModel); }
+  opModel.visible = third;
+  opModel.position.copy(pos);
+  opModel.rotation.copy(fpvDroneGroup.rotation); opModel.rotation.z = o.tr || 0;
+  if (!third) { o.camPos = null; camera.position.copy(pos); camera.rotation.copy(fpvDroneGroup.rotation); return; }
+  const tgt = new THREE.Vector3(Math.sin(mouseYaw) * 6.5 + pos.x, pos.y + 2.4 - Math.sin(fpvDroneGroup.rotation.x) * 2, Math.cos(mouseYaw) * 6.5 + pos.z);
+  if (!o.camPos) o.camPos = tgt.clone(); else o.camPos.lerp(tgt, Math.min(1, 7 * delta));
+  camera.position.copy(o.camPos);
+  camera.lookAt(pos.x, pos.y + 0.3, pos.z);
+}
+
+function toggleOpView() {
+  const o = state.op; if (!o || state.mode !== 'operator' || !state.active) return;
+  o.view = o.view === 'third' ? 'first' : 'third'; o.camPos = null;
+  document.body.classList.toggle('third-person', o.view === 'third');
+  $('#btn-view').innerHTML = o.view === 'third' ? ICON_EYE + ' ВИД: 3-Е ЛИЦО' : ICON_EYE + ' ВИД: 1-Е ЛИЦО';
+}
+
+function hideOpModel() { if (opModel) opModel.visible = false; document.body.classList.remove('third-person'); }
+
+function opCheckWin() {
+  const o = state.op;
+  // задания убраны: матч идёт, пока не закончатся дроны; счёт скрытый
+
+  return false;
+}
+
+function opBlast(pos) {
+  const o = state.op; let sk = 0, tk = 0, fire = 0;
+  [...soldiers].forEach(s => {
+    const d = Math.hypot(s.position.x - pos.x, s.position.z - pos.z);
+    if (d > 20 || Math.abs(pos.y - 1) > 25) return;
+    if (d <= 12 || Math.random() < 0.6) { dieSoldier(s, pos); o.soldiers++; state.kills++; sk++; }
+  });
+  [...vehicles].forEach(v => {
+    const d = Math.hypot(v.position.x - pos.x, v.position.z - pos.z);
+    if (d > 20 || Math.abs(pos.y - 2) > 25) return;
+    if (d <= 8) { createExplosion(v.position, 6); wreckVehicle(v); o.trucks++; state.kills++; tk++; }
+    else if (!v.userData.burn) { v.userData.burn = 4 + Math.random() * 2; v.userData.speed = 0; fire++; }
+  });
+  const parts = [];
+  if (sk) parts.push('ВОЕННЫХ +' + sk); if (tk) parts.push('МАШИН +' + tk); if (fire) parts.push('МАШИНА ГОРИТ');
+  if (parts.length) opToast('ОСКОЛКИ: ' + parts.join(' · '));
+}
+
+function updateBurning(delta) {
+  const o = state.op;
+  [...vehicles].forEach(v => {
+    const u = v.userData; if (!(u.burn > 0)) return;
+    u.burn -= delta; u.fx = (u.fx || 0) - delta;
+    if (u.fx <= 0) { u.fx = 0.35; const p = v.position.clone(); p.y = 3.5; createSmoke(p, 2); createExplosion(p, 1.2); }
+    if (u.burn <= 0) {
+      createExplosion(v.position, 6); wreckVehicle(v);
+      o.trucks++; state.kills++; opToast('МАШИНА СГОРЕЛА'); updateHUD(); opCheckWin();
+    }
+  });
+}
+
+function checkKamikaze() {
+  const p = fpvDroneGroup.position, o = state.op; if (!o) return false;
+  let kind = null, target = null;
+  for (const v of vehicles) { const dx = p.x - v.position.x, dz = p.z - v.position.z; if (Math.abs(dx) < 1.7 + DRONE_R && dz > -4.3 - DRONE_R && dz < 4.9 + DRONE_R && p.y < 4 + DRONE_R) { kind = 'truck'; target = v; break; } }
+  if (!kind) for (const s of soldiers) if (Math.hypot(p.x - s.position.x, p.z - s.position.z) < 0.5 + DRONE_R && p.y < 2 + DRONE_R) { kind = 'soldier'; target = s; break; }
+  if (!kind) for (const b of BLD) if (Math.abs(p.x - b.x) < b.hx + DRONE_R && Math.abs(p.z - b.z) < b.hz + DRONE_R && p.y < b.h + DRONE_R * 0.6) { kind = 'bld'; target = b; break; }
+  if (!kind) return false;
+
+  const pos = p.clone();
+  createExplosion(pos, 5); createSmoke(pos, 4); debris(pos, 4, 0.7);
+  if (kind === 'truck') { createExplosion(target.position, 6); wreckVehicle(target); o.trucks++; state.kills++; opToast('МАШИНА УНИЧТОЖЕНА'); }
+  else if (kind === 'soldier') { dieSoldier(target, pos); o.soldiers++; state.kills++; opToast('ВОЕННЫЙ УНИЧТОЖЕН'); }
+  else { const alive = target.hp > 0; damageBuilding(target, 0); if (alive) { o.bld++; opToast('ПОПАДАНИЕ ПО ЗДАНИЮ'); } }
+
+  opBlast(pos);
+  updateHUD();
+  if (opCheckWin()) return true;
+  endDrone();
+  return true;
+}
+
+function endDrone() {
+  const o = state.op;
+  updateHUD(); // дроны не заканчиваются: матч идёт 10 минут
+  fpvDroneGroup.position.set(0, 30, 0);
+  o.vel.set(0, 0, 0); o.bat = 100; o.grace = 3; o.jammed = false; o.camPos = null; clearInterceptors();
+  camera.position.copy(fpvDroneGroup.position);
+}
+
+function droneShotDown() {
+  const o = state.op; if (!o || o.grace > 0 || !state.active) return;
+  createExplosion(fpvDroneGroup.position, 4); createSmoke(fpvDroneGroup.position, 6);
+  opToast('ДРОН СБИТ');
+  endDrone();
+}
+
+function updateFPVDrone(delta) {
+  const o = state.op; if (!o) return;
+  let roll = 0;
+  if (IS_TOUCH) {
+    const yw = Math.abs(joy.x) < 0.15 ? 0 : joy.x;
+    mouseYaw -= Math.sign(yw) * Math.pow(Math.abs(yw), 1.6) * 1.9 * delta;
+    const k = Math.min(1, 6 * delta);
+    o.tp = (o.tp === undefined ? -0.3 : o.tp); o.tr = o.tr || 0;
+    o.tp += (-0.1 + joyR.y * 0.9 - o.tp) * k;
+    o.tr += (-joyR.x * 0.4 - o.tr) * k;
+    mousePitch = o.tp; roll = o.tr;
+  }
+  const shk = o.jammed ? (Math.random() - 0.5) * 0.07 : 0;
+  camera.rotation.set(mousePitch + shk, mouseYaw, shk);
+  fpvDroneGroup.rotation.copy(camera.rotation);
+  propRotators.forEach(p => p.rotation.z += 35 * delta);
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const mv = new THREE.Vector3();
+  if (IS_TOUCH) {
+    const e = new THREE.Euler(0, mouseYaw, 0);
+    const side = new THREE.Vector3(1, 0, 0).applyEuler(e);
+    const dz = v => Math.abs(v) < 0.1 ? 0 : v;
+    const ry = dz(joyR.y), pd = ry * 0.9;
+    const dir = new THREE.Vector3(-Math.sin(mouseYaw) * Math.cos(pd), Math.sin(pd), -Math.cos(mouseYaw) * Math.cos(pd));
+    mv.addScaledVector(dir, Math.abs(ry)).addScaledVector(side, dz(joyR.x)).addScaledVector(up, -dz(joy.y) * 0.35);
+    if (mv.length() > 1) mv.normalize();
+  } else {
+    const fwd = new THREE.Vector3(0, 0, -1).applyEuler(fpvDroneGroup.rotation);
+    const side = new THREE.Vector3(1, 0, 0).applyEuler(fpvDroneGroup.rotation);
+    if (keys.w) mv.add(fwd);
+    if (keys.s) mv.sub(fwd);
+    if (keys.d) mv.add(side);
+    if (keys.a) mv.sub(side);
+    if (keys.space) mv.add(up);
+    if (keys.shift) mv.sub(up);
+    if (mv.lengthSq() > 0) mv.normalize();
+  }
+
+  assistAim(mv, fpvDroneGroup.position);
+  if (o.jammed) mv.x += (Math.random() - 0.5) * 0.5, mv.z += (Math.random() - 0.5) * 0.5;
+  const vbase = 38 + 4 * lv("o_spd"), vmax = vbase * (o.jammed ? 0.55 : 1);
+  const target = mv.multiplyScalar(vmax);
+  const dv = target.clone().sub(o.vel);
+  const rate = (target.lengthSq() > o.vel.lengthSq() ? 16 : 40) * delta;
+  if (dv.length() > rate) dv.setLength(rate);
+  o.vel.add(dv);
+  fpvDroneGroup.position.addScaledVector(o.vel, delta);
+  fpvDroneGroup.position.y = Math.max(2, Math.min(150, fpvDroneGroup.position.y));
+
+  const sp = o.vel.length();
+  o.bat -= (1.2 + 3.8 * sp / vbase) * delta * (o.jammed ? 1.8 : 1);
+
+  if (checkKamikaze()) return;
+  collide(fpvDroneGroup.position, DRONE_R * 0.6);
+
+  placeOpCamera(delta);
+
+  $('#fpv-alt').textContent = Math.round(fpvDroneGroup.position.y);
+  $('#fpv-spd').textContent = Math.round(95 * sp / vbase);
+  const bt = $('#fpv-bat'); bt.textContent = Math.max(0, Math.round(o.bat)); bt.style.color = o.bat < 20 ? '#ff4040' : '';
+
+  if (o.bat <= 0) { createExplosion(fpvDroneGroup.position, 2); opToast('БАТАРЕЯ РАЗРЯЖЕНА'); endDrone(); }
+}
+
+/* =========================================================================
+   СОЮЗНЫЕ ДРОНЫ: другие операторы тоже запускают FPV-дроны и бьют по целям
+   ========================================================================= */
+
+const allyDrones = [];
+const ALLY_MAX = () => MATCH.allyMax;
+let allySpawnT = 2;
+const pickRnd = a => a[Math.floor(Math.random() * a.length)];
+
+function pickAllyTarget() {
+  const r = Math.random(), bl = BLD.filter(b => b.hp > 0);
+  if (r < 0.4 && vehicles.length) return { k: 'truck', u: pickRnd(vehicles) };
+  if (r < 0.75 && soldiers.length) return { k: 'soldier', u: pickRnd(soldiers) };
+  if (bl.length) return { k: 'bld', b: pickRnd(bl) };
+  if (vehicles.length) return { k: 'truck', u: pickRnd(vehicles) };
+  return null;
+}
+
+function spawnAlly() {
+  const t = pickAllyTarget(); if (!t) return;
+  const fm = makeFPVClone(2.2), d = fm.holder, a = Math.random() * Math.PI * 2;
+  d.position.set(Math.cos(a) * 250, 35 + Math.random() * 25, Math.sin(a) * 250);
+  d.userData = Object.assign({ rotors: fm.rotors }, t);
+  scene.add(d); allyDrones.push(d);
+}
+
+function allyTargetPoint(u) {
+  if (u.k === 'bld') return u.b.hp > 0 ? new THREE.Vector3(u.b.x, Math.max(4, u.b.h * 0.5), u.b.z) : null;
+  const list = u.k === 'truck' ? vehicles : soldiers;
+  return list.includes(u.u) ? u.u.position.clone().setY(u.u.position.y + (u.k === 'truck' ? 2.5 : 1.2)) : null;
+}
+
+function allyCrash(d, hit) {
+  const o = state.op, pos = d.position.clone();
+  createExplosion(pos, 4); createSmoke(pos, 3); scene.remove(d);
+  if (hit.k === 'truck') { createExplosion(hit.u.position, 5); wreckVehicle(hit.u); o.trucks++; state.kills++; }
+  else if (hit.k === 'soldier') { dieSoldier(hit.u, pos); o.soldiers++; state.kills++; }
+  else { const alive = hit.b.hp > 0; damageBuilding(hit.b, 0); if (alive) o.bld++; }
+  opBlast(pos); opToast('СОЮЗНЫЙ ДРОН: ЦЕЛЬ ПОРАЖЕНА');
+  updateHUD(); opCheckWin();
+}
+
+function updateAllies(delta) {
+  if (!state.op || !state.active) return;
+  allySpawnT -= delta;
+  if (allyDrones.length < ALLY_MAX() && allySpawnT <= 0) { spawnAlly(); allySpawnT = MATCH.allySpawnEvery[0] + Math.random() * (MATCH.allySpawnEvery[1] - MATCH.allySpawnEvery[0]); }
+  for (let i = allyDrones.length - 1; i >= 0; i--) {
+    const d = allyDrones[i], u = d.userData;
+    u.rotors.forEach(r => r.rotation.y += 60 * delta);
+    const tp = allyTargetPoint(u);
+    if (!tp) { const t = pickAllyTarget(); if (t) Object.assign(u, t); else { scene.remove(d); allyDrones.splice(i, 1); } continue; }
+    d.lookAt(tp);
+    d.position.addScaledVector(tp.clone().sub(d.position).normalize(), 24 * delta);
+    const p = d.position; let hit = null;
+    for (const v of vehicles) if (Math.abs(p.x - v.position.x) < 2.5 && p.z > v.position.z - 5 && p.z < v.position.z + 5.5 && p.y < 5) { hit = { k: 'truck', u: v }; break; }
+    if (!hit) for (const s of soldiers) if (Math.hypot(p.x - s.position.x, p.z - s.position.z) < 1.4 && p.y < 3) { hit = { k: 'soldier', u: s }; break; }
+    if (!hit) { const b = hitBuilding(p); if (b) hit = { k: 'bld', b }; }
+    if (hit) { allyDrones.splice(i, 1); allyCrash(d, hit); }
+  }
+}
+
+function clearAllies() { allyDrones.forEach(d => scene.remove(d)); allyDrones.length = 0; allySpawnT = 2; }
+
+/* =========================================================================
+   ИНТЕРФЕЙС: меню, ангар, магазин, HUD
+   ========================================================================= */
+
+function setupUI() {
+  $('#btn-play-start').onclick = () => {
+    $('#main-menu').classList.remove('active');
+    $('#mode-modal').classList.add('active');
+  };
+
+  $('#btn-hangar').onclick = openHangar;
+  $('#btn-hangar-back').onclick = closeHangar;
+
+  $('#btn-settings').onclick = () => $('#settings-modal').classList.add('active');
+  $('#btn-settings-close').onclick = () => {
+    applySettings();
+    $('#settings-modal').classList.remove('active');
+  };
+
+  $('#tab-sol').onclick = () => switchHangarTab('soldier');
+  $('#tab-op').onclick = () => switchHangarTab('operator');
+
+  $('#btn-prev-item').onclick = () => cycleHangarItem(-1);
+  $('#btn-next-item').onclick = () => cycleHangarItem(1);
+
+  $('#card-soldier').onclick = () => startMode('soldier');
+  $('#card-operator').onclick = () => startMode('operator');
+  
+  $('#btn-mode-back').onclick = () => {
+    $('#mode-modal').classList.remove('active');
+    $('#main-menu').classList.add('active');
+  };
+
+  $('#btn-view').onclick = (e) => { e.preventDefault(); toggleOpView(); };
+  addEventListener('keydown', e => { if (e.code === 'KeyV') toggleOpView(); });
+  $('#btn-pause-hud').onclick = (e) => {
+    e.preventDefault();
+    pauseAndExitGame();
+  };
+
+  document.querySelectorAll('.wbtn').forEach(b => b.onclick = () => setWeapon(b.dataset.w));
+  $('#btn-pause-menu').onclick = () => { $('#click-to-play').classList.remove('active'); pauseAndExitGame(); };
+  $('#btn-restart').onclick = () => {
+    $('#end-screen').classList.remove('active');
+    startMode(state.mode);
+  };
+
+  $('#btn-to-menu').onclick = () => {
+    $('#end-screen').classList.remove('active');
+    $('#main-menu').classList.add('active');
+    state.view = 'main';
+  };
+
+  $('#btn-lock-start').onclick = () => {
+    if (IS_TOUCH) { state.paused = false; $('#click-to-play').classList.remove('active'); return; }
+    try { document.body.requestPointerLock(); } catch (e) {}
+  };
+}
+
+function applySettings() {
+  setTimeout(() => { sun.castShadow = $('#gfx-select').value === 'high'; });
+  const sensVal = parseFloat($('#sens-slider').value);
+  state.sensitivity = 0.0008 + (sensVal * 0.0004);
+
+  const gfxVal = $('#gfx-select').value;
+  if (gfxVal === 'high') {
+    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  } else if (gfxVal === 'medium') {
+    renderer.shadowMap.enabled = false;
+    renderer.setPixelRatio(1);
+  } else {
+    renderer.shadowMap.enabled = false;
+    renderer.setPixelRatio(0.75);
+  }
+}
+
+function switchHangarTab(tab) {
+  state.tab = tab;
+  state.itemIdx = 0;
+  $('#tab-sol').classList.toggle('active', tab === 'soldier');
+  $('#tab-op').classList.toggle('active', tab === 'operator');
+  updateHangarPreview();
+}
+
+function cycleHangarItem(dir) {
+  const list = ITEMS[state.tab];
+  state.itemIdx = (state.itemIdx + dir + list.length) % list.length;
+  updateHangarPreview();
+}
+
+function openHangar() {
+  state.view = 'hangar';
+  $('#main-menu').classList.remove('active');
+  $('#hangar-scr').classList.add('active');
+
+  gunGroup.visible = handInt.visible = jamGroup.visible = false;
+  camera.position.set(0, 601.5, 4.5);
+  camera.lookAt(0, 600.4, 0);
+
+  updateHangarPreview();
+}
+
+function closeHangar() {
+  state.view = 'main';
+  $('#hangar-scr').classList.remove('active');
+  $('#main-menu').classList.add('active');
+}
+
+function renderShop() {
+  updateBalance();
+  $('#credits').textContent = 'КРЕДИТЫ: ' + save.credits;
+  const box = $('#upg-list'); box.innerHTML = '';
+  UPG[state.tab === 'soldier' ? ITEMS.soldier[state.itemIdx].id : 'operator'].forEach(([k, name, base, desc]) => {
+    const l = lv(k), max = l >= MAXL, cost = upCost(base, k);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:0.9rem';
+    row.innerHTML = `<span>${name} <b style="color:var(--amb)">${l}/${MAXL}</b><br><small style="color:var(--steel)">${desc}</small></span>`;
+    const b = document.createElement('button');
+    b.style.cssText = 'padding:6px 12px;font-size:0.8rem;white-space:nowrap';
+    b.textContent = max ? 'МАКС' : cost + ' кр.';
+    b.disabled = max || save.credits < cost; b.style.opacity = b.disabled ? 0.45 : 1;
+    b.onclick = () => { save.credits -= cost; save.up[k]++; saveGame(); renderShop(); };
+    row.appendChild(b); box.appendChild(row);
+  });
+}
+
+function updateHangarPreview() {
+  const item = ITEMS[state.tab][state.itemIdx];
+  $('#hangar-title').textContent = item.name;
+  $('#hangar-desc').textContent = item.desc;
+
+  while(hangarStageGroup.children.length > 4) {
+    hangarStageGroup.remove(hangarStageGroup.children[4]);
+  }
+
+  let previewMesh;
+  if (state.tab === 'soldier') {
+    previewMesh = (item.id === 'interceptor' ? fpvDroneGroup : item.id === 'jammer' ? jamGroup : gunGroup).clone();
+    previewMesh.scale.setScalar(item.id === 'interceptor' ? 1.5 : 3.2);
+    previewMesh.position.set(0, 0.4, 0);
+    previewMesh.visible = true;
+  } else {
+    previewMesh = fpvQuadGroup.clone();
+    previewMesh.visible = true;
+    previewMesh.scale.set(3.2, 3.2, 3.2);
+    previewMesh.position.set(0, 0.5, 0);
+  }
+
+  hangarStageGroup.add(previewMesh);
+  renderShop();
+}
+
+function updateBalance() {
+  const t = 'БАЛАНС: ' + save.credits + ' кр.';
+  const b = $('#balance-badge'); if (b) b.textContent = t;
+  const h = $('#hud-balance'); if (h) h.textContent = save.credits;
+  const e = $('#hud-earned'); if (e) e.textContent = '';
+}
+
+function opLine(name, a, b) { return name + ': <span style="color:' + (a >= b ? 'var(--green)' : '#fff') + '">' + Math.min(a, b) + ' / ' + b + '</span>'; }
+
+function updateHUD() {
+  updateBalance();
+  if (state.mode === 'operator' && state.op) {
+    const o = state.op;
+    $('#op-goals').innerHTML = '';
+  }
+  const hpP = Math.max(0, state.hp / MATCH.baseHp * 100);
+  $('#hp-val').textContent = Math.round(hpP) + '%';
+  $('#hp-bar').style.width = hpP + '%';
+  $('#ammo-val').textContent = state.mode !== 'soldier' ? '∞' : state.weapon === 'int' ? (intCd > 0 ? 'ПЕРЕЗАРЯДКА ' + Math.ceil(intCd) + ' с' : 'ГОТОВ') : state.weapon === 'jam' ? 'ЗАРЯД ' + Math.round(jamEn) + '%' : (state.reloading ? 'ПЕРЕЗАРЯДКА' : state.ammo + ' / ∞');
+}
+
+function opToast(t) {
+  const e = $('#op-toast'); e.innerHTML = t; e.style.opacity = 1;
+  clearTimeout(opToast.t); opToast.t = setTimeout(() => e.style.opacity = 0, 1600);
+}
+
+/* =========================================================================
+   ВВОД: клавиатура, мышь, тач, стрельба
+   ========================================================================= */
+
+function handleFirePress() {
+  if (!state.active) return;
+  if (state.mode === 'soldier') {
+    if (state.weapon === 'int') {
+      launchInterceptor();
+    } else {
+      isFiring = true;
+    }
+  } else {
+    isFiring = true;
+  }
+}
+
+function handleFireRelease() {
+  isFiring = false;
+}
+
+function setupTouch() {
+  if (!IS_TOUCH) return;
+  document.body.classList.add('touch');
+  $('#click-to-play p').textContent = 'Левый стик — движение, правая сторона экрана — прицеливание, кнопка ОГОНЬ — стрельба.';
+  $('#btn-pause-hud').textContent = '⏸ МЕНЮ';
+  const RAD = 38;
+  const makeStick = (zoneSel, baseSel, knobSel, out, homeX) => {
+    const base = $(baseSel), knob = $(knobSel), zone = $(zoneSel);
+    let id = null, c = { x: 0, y: 0 };
+    const place = (x, y) => { base.style.left = x + 'px'; base.style.top = y + 'px'; };
+    const idle = () => { id = null; out.x = out.y = 0; knob.style.transform = 'translate(0,0)'; place(homeX(), innerHeight - 100); };
+    idle(); addEventListener('resize', idle);
+    zone.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; id = t.identifier; c = { x: t.clientX, y: t.clientY }; place(c.x, c.y); }, { passive: false });
+    zone.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) if (t.identifier === id) {
+        let dx = t.clientX - c.x, dy = t.clientY - c.y; const l = Math.hypot(dx, dy);
+        if (l > RAD) { dx *= RAD / l; dy *= RAD / l; }
+        out.x = dx / RAD; out.y = dy / RAD; knob.style.transform = `translate(${dx}px,${dy}px)`;
+      }
+    }, { passive: false });
+    const end = e => { for (const t of e.changedTouches) if (t.identifier === id) idle(); };
+    zone.addEventListener('touchend', end); zone.addEventListener('touchcancel', end);
+  };
+  makeStick('#joy-zone', '#joy-base', '#joy-knob', joy, () => 100);
+  makeStick('#joy-zone-r', '#joy-base-r', '#joy-knob-r', joyR, () => innerWidth - 100);
+
+  const lz = $('#look-zone'); let lid = null, lp = { x: 0, y: 0 };
+  lz.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; lid = t.identifier; lp = { x: t.clientX, y: t.clientY }; }, { passive: false });
+  lz.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === lid) {
+      const k = state.sensitivity * 2.2;
+      mouseYaw -= (t.clientX - lp.x) * k;
+      mousePitch = Math.max(-1.35, Math.min(1.35, mousePitch - (t.clientY - lp.y) * k));
+      lp = { x: t.clientX, y: t.clientY };
+    }
+  }, { passive: false });
+  const lend = e => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; };
+  lz.addEventListener('touchend', lend); lz.addEventListener('touchcancel', lend);
+
+  const hold = (id, on, off) => {
+    const b = $(id);
+    b.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
+    ['touchend', 'touchcancel'].forEach(n => b.addEventListener(n, e => { e.preventDefault(); off(); }, { passive: false }));
+  };
+  hold('#t-fire', () => handleFirePress(), () => handleFireRelease());
+  hold('#t-up', () => keys.space = true, () => keys.space = false);
+  hold('#t-down', () => keys.shift = true, () => keys.shift = false);
+  hold('#t-reload', () => startReload(), () => {});
+
+  let hx = null;
+  addEventListener('touchstart', e => { if (state.view === 'hangar') hx = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchmove', e => { if (state.view === 'hangar' && hx !== null) { const x = e.touches[0].clientX; hangarStageGroup.rotation.y += (x - hx) * 0.01; hx = x; } }, { passive: true });
+}
+
+function setupInputs() {
+  window.addEventListener('keydown', e => {
+    if (e.code === 'KeyW') keys.w = true;
+    if (e.code === 'KeyA') keys.a = true;
+    if (e.code === 'KeyS') keys.s = true;
+    if (e.code === 'KeyD') keys.d = true;
+    if (e.code === 'Space') keys.space = true;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+    if (state.active && state.mode === 'soldier') {
+      if (e.code === 'KeyR' && state.weapon === 'ak') startReload();
+      if (e.code === 'Digit1') setWeapon('ak');
+      if (e.code === 'Digit2') setWeapon('int');
+      if (e.code === 'Digit3') setWeapon('jam');
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.code === 'KeyW') keys.w = false;
+    if (e.code === 'KeyA') keys.a = false;
+    if (e.code === 'KeyS') keys.s = false;
+    if (e.code === 'KeyD') keys.d = false;
+    if (e.code === 'Space') keys.space = false;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    state.isLocked = (document.pointerLockElement === document.body);
+    if (state.isLocked) { state.paused = false; $('#click-to-play').classList.remove('active'); }
+    else if (state.active) { state.paused = true; isFiring = false; $('#click-to-play').classList.add('active'); }
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (state.view === 'hangar' && isDraggingHangar) {
+      const deltaX = e.clientX - previousMousePosition.x;
+      hangarStageGroup.rotation.y += deltaX * 0.01;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    }
+
+    if (state.isLocked && state.active) {
+      mouseYaw -= e.movementX * state.sensitivity;
+      mousePitch -= e.movementY * state.sensitivity;
+      mousePitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, mousePitch));
+    }
+  });
+
+  window.addEventListener('mousedown', e => {
+    if (state.view === 'hangar') {
+      isDraggingHangar = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
+    }
+    if (e.button === 0 && state.active && state.isLocked) handleFirePress();
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDraggingHangar = false;
+    handleFireRelease();
+  });
+}
+
+/* =========================================================================
+   ИГРОВОЙ ЦИКЛ: старт, пауза, победа/поражение
+   ========================================================================= */
+
+function startMode(mode) {
+  state.mode = mode;
+  $('#touch-ui').dataset.mode = mode;
+  $('#hud').dataset.mode = mode;
+  state.view = 'game';
+  state.active = true;
+  state.hp = MATCH.baseHp; state.matchT = MATCH.matchTime; state.dmg = { drone: 0, truck: 0, soldier: 0, bld: 0 }; state.matchS = -1;
+  state.kills = 0; state.ammo = magSize(); state.reloading = false; state.paused = true;
+  mouseYaw = mousePitch = 0; isFiring = false;
+  enemyDrones.forEach(d => scene.remove(d)); enemyDrones.length = 0;
+  intCd = 0; jamEn = 100; jamLock = false; missiles.forEach(m => scene.remove(m)); missiles.length = 0;
+  clearWrecks();
+  BLD.forEach(b => { b.vis = undefined; b.fire = 0; b.shake = 0; if (b.mx !== undefined) { b.mesh.position.x = b.mx; b.mesh.position.z = b.mz; } b.hp = b.hpMax || 3; b.h = b.h0; b.mesh.scale.y = 1; b.mesh.position.y = b.h0 / 2; b.ac.visible = true; });
+
+  $('#mode-modal').classList.remove('active');
+  $('#hud').classList.add('active');
+  $('#click-to-play').classList.add('active');
+
+  if (mode === 'soldier') {
+    playerGroup.position.set(0, 1.7, 0);
+    gunGroup.visible = true;
+    fpvDroneGroup.visible = false;
+    $('#fpv-overlay').classList.remove('active');
+    $('#hud-mode-title').textContent = "ВОЕННЫЙ";
+    camera.rotation.order = 'YXZ'; document.body.classList.remove('op-active'); hideOpModel();
+    while (soldiers.length > 2) scene.remove(soldiers.pop());
+    if (IS_TOUCH) $('#click-to-play p').textContent = 'Левый стик — движение, правая сторона экрана — прицеливание, кнопка ОГОНЬ — стрельба.';
+    setWeapon('ak');
+  } else {
+    fpvDroneGroup.position.set(0, 30, 0);
+    gunGroup.visible = false;
+    fpvDroneGroup.visible = false;
+    $('#fpv-overlay').classList.add('active');
+    $('#hud-mode-title').textContent = "ОПЕРАТОР FPV";
+    $('#btn-view').innerHTML = ICON_EYE + ' ВИД: 1-Е ЛИЦО'; hideOpModel();
+    state.op = { view: 'first', trucks: 0, soldiers: 0, bld: 0, drones: MATCH.opDrones, bat: 100, grace: 3, vel: new THREE.Vector3() };
+    camera.rotation.order = 'YXZ'; document.body.classList.add('op-active');
+    if (IS_TOUCH) { mousePitch = -0.3; $('#click-to-play p').textContent = 'Левый стик: вверх — подъём, вниз — снижение, вбок — поворот. Правый стик: вперёд — нос вниз, летит вниз по взгляду; назад — нос вверх, летит вверх; вбок — крен. Батареи хватает примерно до края города.'; }
+    setupOperatorEnemies();
+    showWeapon();
+  }
+
+  $('#hud-sub-info').style.display = 'none'; $('#match-timer').style.display = 'block';
+  updateHUD(); matchEmit('start', { mode, roles: MATCH.roles });
+}
+
+function pauseAndExitGame() {
+  document.body.classList.remove('op-active'); clearInterceptors(); hideOpModel();
+  state.active = false; state.paused = false; isFiring = false; $('#match-timer').style.display = 'none';
+  if (document.pointerLockElement) document.exitPointerLock();
+
+  $('#hud').classList.remove('active');
+  $('#fpv-overlay').classList.remove('active');
+  $('#click-to-play').classList.remove('active');
+  $('#main-menu').classList.add('active');
+  state.view = 'main';
+}
+
+function checkDefeat() {
+  if (state.hp <= 0 && state.active) finishGame(state.mode === 'operator', "БАЗА РАЗРУШЕНА — ПОБЕДИЛИ ОПЕРАТОРЫ");
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+
+  if (state.view === 'hangar') {
+    hangarStageGroup.rotation.y += 0.4 * delta;
+  }
+
+  if (state.active && !state.paused) {
+    if (IS_TOUCH && state.mode === 'soldier') { keys.w = joy.y < -0.3; keys.s = joy.y > 0.3; keys.a = joy.x < -0.3; keys.d = joy.x > 0.3; }
+    if (state.mode === 'soldier') {
+      updateFPSPlayer(delta);
+    } else {
+      updateFPVDrone(delta);
+    }
+
+    updateVehicles(delta);
+    updateEnemyDrones(delta);
+    updateParticlesAndCasings(delta);
+    updateDying(delta); updateBuildings(delta);
+    updateWeapons(delta);
+    updateInterceptorTargeting();
+    updateSoldiers(delta);
+    if (state.mode === 'operator') { updateTruckGuns(delta); updateAllies(delta); }
+
+    tickMatch(delta);
+    if (state.mode === 'soldier' && Math.random() < MATCH.enemySpawnPerSec * delta && enemyDrones.length < MATCH.enemyDroneMax) {
+      spawnEnemyDrone();
+    }
+  }
+
+  if (state.view !== 'game') gunGroup.visible = handInt.visible = jamGroup.visible = false;
+  if (state.view === 'main') {
+    const t = clock.elapsedTime * 0.06;
+    camera.position.set(Math.cos(t) * 170, 75, Math.sin(t) * 170);
+    camera.lookAt(0, 30, 0);
+  }
+  sky.position.copy(camera.position);
+  sun.visible = state.view !== 'hangar';
+  sun.position.set(camera.position.x + 120, 90, camera.position.z + 80);
+  sun.target.position.set(camera.position.x, 0, camera.position.z);
+  renderer.render(scene, camera);
+}
+
+function finishGame(win, reason) {
+  document.body.classList.remove('op-active'); clearInterceptors(); hideOpModel();
+  state.active = false; $('#match-timer').style.display = 'none';
+  if (document.pointerLockElement) document.exitPointerLock();
+
+  $('#hud').classList.remove('active');
+  $('#fpv-overlay').classList.remove('active');
+  
+  const op = state.mode === 'operator' && state.op;
+  $('#end-title').textContent = win ? "ПОБЕДА!" : "ПОРАЖЕНИЕ";
+  $('#end-title').style.color = win ? "var(--green)" : "var(--red)";
+  const earned = state.kills * KILL_REWARD + (win ? MISSION_REWARD : 0);
+  save.credits += earned; saveGame(); updateBalance();
+  const T = matchTotalDamage();
+  const res = op ? `Машин: ${state.op.trucks} · Военных: ${state.op.soldiers} · Зданий: ${state.op.bld} · Нанесено урона: ${T}`
+                 : `Сбито дронов: ${state.kills} · Нанесено урона: ${T} · Урон базе: ${Math.round(MATCH.baseHp - Math.max(0, state.hp))} из ${MATCH.baseHp}`;
+  $('#end-desc').textContent = `${reason} | ${res} | Награда: +${earned} кр. | Баланс: ${save.credits} кр.`;
+  matchEmit('end', { reason, win, kills: state.kills, op: op ? { trucks: state.op.trucks, soldiers: state.op.soldiers, bld: state.op.bld } : null });
+  
+  $('#end-screen').classList.add('active');
+}
+
+try { updateBalance(); } catch (e) {}
+
+/* =========================================================================
+   ТОЧКА ВХОДА
+   ========================================================================= */
+
+window.addEventListener('DOMContentLoaded', () => {
+  $('#btn-prev-item').innerHTML = ICON_L; $('#btn-next-item').innerHTML = ICON_R;
+  $('#rot-hint').innerHTML = ICON_L + ' Зажмите ЛКМ и вращайте модель 3D ' + ICON_R;
+  $('#btn-view').innerHTML = ICON_EYE + ' ВИД: 1-Е ЛИЦО';
+  initThree(); createTargetMarker();
+  setupUI();
+  setupInputs();
+  setupTouch();
+  animate();
+});
+</script>
+</body>
+</html>
